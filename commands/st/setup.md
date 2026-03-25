@@ -12,7 +12,7 @@ Follow these steps in order:
 
 1. **Check Node.js**: Run `node --version` to verify Node.js is installed. If not, tell the user to install Node.js first from https://nodejs.org/
 
-2. **Install st-card-tools**: Run `npm install -g st-card-tools` to install the CLI globally.
+2. **Install st-card-tools**: Run `npm install -g st-card-tools@latest` to install or upgrade the CLI globally.
 
 3. **Verify installation**: Run `st-card-tools --help` to confirm it works.
 
