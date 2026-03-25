@@ -1,0 +1,21 @@
+{
+  "name": "st-card-skills",
+  "version": "1.0.0",
+  "description": "Claude Code skills for SillyTavern character card and world book editing",
+  "type": "module",
+  "bin": {
+    "st-card-skills": "./install.js"
+  },
+  "files": [
+    "commands",
+    "install.js"
+  ],
+  "keywords": [
+    "claude-code",
+    "sillytavern",
+    "skills",
+    "character-card",
+    "world-book"
+  ],
+  "license": "MIT"
+}
