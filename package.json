@@ -1,6 +1,6 @@
 {
   "name": "st-card-skills",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "AI coding assistant skills for SillyTavern character card and world book editing (Claude Code, Codex, Gemini CLI)",
   "bin": {
     "st-card-skills": "./install.js"
