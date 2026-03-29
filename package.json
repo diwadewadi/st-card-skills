@@ -1,15 +1,26 @@
 {
   "name": "st-card-skills",
-  "version": "2.0.1",
-  "description": "AI coding assistant skills for SillyTavern character card and world book editing (Claude Code, Codex, Gemini CLI)",
+  "version": "3.0.0",
+  "description": "SillyTavern character card & world book CLI + AI coding assistant skills (Claude Code, Codex, Gemini CLI)",
+  "type": "module",
+  "main": "dist/lib.js",
+  "exports": {
+    ".": "./dist/lib.js"
+  },
   "bin": {
-    "st-card-skills": "./install.js"
+    "st-card-skills": "./install.cjs",
+    "st-card-tools": "./dist/cli.js"
   },
   "files": [
     "commands",
-    "install.js",
+    "install.cjs",
+    "dist",
     "package.json"
   ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
     "claude-code",
     "codex",
@@ -17,7 +28,17 @@
     "sillytavern",
     "skills",
     "character-card",
-    "world-book"
+    "world-book",
+    "cli"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "crc": "^4.3.2",
+    "png-chunk-text": "^1.0.0",
+    "png-chunks-extract": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
 }

@@ -1,37 +1,60 @@
 # st-card-skills
 
-AI coding assistant skills for SillyTavern character card and world book editing.
+SillyTavern character card & world book CLI tool + AI coding assistant skills.
 
 Supports **Claude Code**, **Codex**, and **Gemini CLI**.
 
 ## Install
 
 ```bash
-npx st-card-skills@latest
+npm install -g st-card-skills@latest
 ```
 
-An interactive menu will let you choose which runtime(s) to install for.
+This gives you two commands:
+- `st-card-tools` — CLI tool for reading/writing character cards and world books
+- `st-card-skills` — Install skill files for your AI coding assistant
 
-### CLI flags
+## Quick Start
+
+```bash
+# Install skill files (interactive runtime selector)
+st-card-skills
+
+# Configure SillyTavern path
+st-card-tools init-config --st-root "/path/to/SillyTavern" --workspace "./workspace"
+
+# Or use the setup wizard in Claude Code
+/st:setup
+```
+
+## CLI Tool (st-card-tools)
+
+```bash
+st-card-tools list-cards          # List character cards
+st-card-tools read-card <name>    # Read card JSON
+st-card-tools extract-card <name> # Extract card to workspace
+st-card-tools apply-card <name>   # Apply workspace back to PNG
+st-card-tools list-worlds         # List world books
+st-card-tools read-world <name>   # Read world book entries
+st-card-tools extract-world <name> # Extract world to workspace
+st-card-tools apply-world <name>  # Apply workspace back to JSON
+```
+
+## Skills Installer (st-card-skills)
 
 ```bash
 # Install for a specific runtime
-npx st-card-skills --claude
-npx st-card-skills --codex
-npx st-card-skills --gemini
-
-# Install for all runtimes
-npx st-card-skills --all
+st-card-skills --claude
+st-card-skills --codex
+st-card-skills --gemini
+st-card-skills --all
 
 # Uninstall
-npx st-card-skills --uninstall --claude
-npx st-card-skills --uninstall --all
+st-card-skills --uninstall --claude
 ```
 
-### Install locations
-
-| Runtime | Directory |
-|---------|-----------|
+| Runtime | Install Location |
+|---------|-----------------|
 | Claude Code | `~/.claude/commands/st/` |
 | Codex | `~/.codex/skills/st-*/` |
 | Gemini CLI | `~/.gemini/commands/st/` |
@@ -40,12 +63,8 @@ npx st-card-skills --uninstall --all
 
 | Skill | Description |
 |-------|-------------|
-| `/st:setup` | Install st-card-tools CLI and configure SillyTavern path |
+| `/st:setup` | Configure SillyTavern path and workspace |
 | `/st:help` | Show all available commands and usage |
-
-## Requires
-
-- [st-card-tools](https://www.npmjs.com/package/st-card-tools) — CLI tool (installed via `/st:setup`)
 
 ## License
 
