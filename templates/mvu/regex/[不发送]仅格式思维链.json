@@ -1,0 +1,15 @@
+{
+  "id": "",
+  "scriptName": "[不发送]仅格式思维链",
+  "disabled": false,
+  "runOnEdit": true,
+  "findRegex": "/<Analysis>[\\s\\S]+?<\\/Analysis>/gm",
+  "replaceString": "",
+  "trimStrings": [],
+  "placement": [2],
+  "substituteRegex": 0,
+  "minDepth": null,
+  "maxDepth": null,
+  "markdownOnly": false,
+  "promptOnly": true
+}

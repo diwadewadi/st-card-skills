@@ -22,6 +22,7 @@ const hasClaude = args.includes('--claude');
 const hasCodex = args.includes('--codex');
 const hasGemini = args.includes('--gemini');
 const hasAll = args.includes('--all');
+const hasAuto = args.includes('--auto');
 const hasUninstall = args.includes('--uninstall') || args.includes('-u');
 
 let selectedRuntimes = [];
@@ -312,7 +313,23 @@ function run(runtimes) {
 // Main
 console.log(`\n  ${cyan}st-card-skills${reset} ${dim}v${pkg.version}${reset}\n`);
 
-if (selectedRuntimes.length > 0) {
+if (hasAuto) {
+  // Auto mode: detect which runtimes already have st skills installed, update them silently
+  const detected = [];
+  for (const [name, config] of Object.entries(RUNTIMES)) {
+    const targetDir = config.commandsDir(config.globalDir());
+    if (fs.existsSync(targetDir) && fs.readdirSync(targetDir).some(f => f.endsWith('.md') || f.startsWith('st-'))) {
+      detected.push(name);
+    }
+  }
+  if (detected.length > 0) {
+    console.log(`  Updating skills for: ${detected.map(r => RUNTIMES[r].label).join(', ')}...`);
+    run(detected);
+  } else {
+    // First install: default to claude
+    run(['claude']);
+  }
+} else if (selectedRuntimes.length > 0) {
   run(selectedRuntimes);
 } else {
   promptRuntime(run);

@@ -1,6 +1,6 @@
 {
   "name": "st-card-skills",
-  "version": "3.0.1",
+  "version": "3.3.7",
   "description": "SillyTavern character card & world book CLI + AI coding assistant skills (Claude Code, Codex, Gemini CLI)",
   "type": "module",
   "main": "dist/lib.js",
@@ -13,13 +13,15 @@
   },
   "files": [
     "commands",
+    "templates",
     "install.cjs",
     "dist",
     "package.json"
   ],
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "postinstall": "node install.cjs --auto"
   },
   "keywords": [
     "claude-code",

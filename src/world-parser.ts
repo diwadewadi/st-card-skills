@@ -253,21 +253,23 @@ function sanitizeFilename(name: string): string {
  */
 export function extractWorldToWorkspace(
   worldPath: string,
-  workspaceDir: string
+  workspaceDir: string,
+  subDir?: string
 ): { outDir: string; entryFiles: string[] } {
   const world = readWorld(worldPath);
   const bookName = path.basename(worldPath, ".json");
   const sanitized = sanitizeFilename(bookName);
-  const outDir = path.join(workspaceDir, "worlds", sanitized);
+  const outDir = subDir
+    ? path.join(workspaceDir, subDir)
+    : path.join(workspaceDir, "worlds", sanitized);
 
   fs.mkdirSync(outDir, { recursive: true });
 
-  // Write _meta.json (everything except entries)
-  const { entries, ...meta } = world;
-  const metaWithSource = { ...meta, _source: worldPath };
+  // Write _meta.json (source path only)
+  const { entries } = world;
   fs.writeFileSync(
     path.join(outDir, "_meta.json"),
-    JSON.stringify(metaWithSource, null, 2),
+    JSON.stringify({ _source: worldPath }, null, 2),
     "utf8"
   );
 
@@ -282,14 +284,24 @@ export function extractWorldToWorkspace(
     const entry = entries[id];
     const seq = String(i).padStart(3, "0");
     const comment = sanitizeFilename(entry.comment || "unnamed");
-    const filename = `${seq}_${comment}.json`;
-    const entryWithId = { _id: id, ...entry };
+    const baseName = `${seq}_${comment}`;
+
+    // Write content to a separate .txt for easy editing
+    const { content, ...entryMeta } = entry;
     fs.writeFileSync(
-      path.join(outDir, filename),
+      path.join(outDir, `${baseName}-content.txt`),
+      content,
+      "utf8"
+    );
+
+    // Write metadata (without content) to .json
+    const entryWithId = { _id: id, ...entryMeta };
+    fs.writeFileSync(
+      path.join(outDir, `${baseName}.json`),
       JSON.stringify(entryWithId, null, 2),
       "utf8"
     );
-    entryFiles.push(filename);
+    entryFiles.push(`${baseName}.json`);
   }
 
   return { outDir, entryFiles };
@@ -308,9 +320,7 @@ export function applyWorldFromWorkspace(
   }
 
   const metaRaw = JSON.parse(fs.readFileSync(metaPath, "utf8"));
-  const { _source, ...meta } = metaRaw;
-
-  const target = outputPath || _source;
+  const target = outputPath || metaRaw._source;
   if (!target) {
     throw new Error("No output path and no _source in _meta.json");
   }
@@ -328,10 +338,18 @@ export function applyWorldFromWorkspace(
     );
     const { _id, ...entry } = raw;
     const id = _id ?? String(Object.keys(entries).length);
+
+    // Read content from companion -content.txt if it exists
+    const baseName = file.replace(/\.json$/, "");
+    const txtPath = path.join(worldDir, `${baseName}-content.txt`);
+    if (fs.existsSync(txtPath)) {
+      entry.content = fs.readFileSync(txtPath, "utf8");
+    }
+
     entries[id] = entry as WorldEntry;
   }
 
-  const world: WorldBook = { ...meta, entries };
+  const world: WorldBook = { entries };
   writeWorld(target, world);
   return target;
 }

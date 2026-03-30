@@ -1,0 +1,44 @@
+{
+  "data": {
+    "extensions": {
+      "tavern_helper": {
+        "scripts": [
+          {
+            "button": {
+              "buttons": [],
+              "enabled": true
+            },
+            "content": "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\n\nexport const Schema = z.object({\n  // 根据角色卡需求定义变量结构\n});\n\n$(() => {\n  registerMvuSchema(Schema);\n})",
+            "data": {},
+            "enabled": true,
+            "id": "00000000-0000-0000-0000-000000000001",
+            "info": "",
+            "name": "变量结构",
+            "type": "script"
+          },
+          {
+            "button": {
+              "buttons": [
+                { "name": "重新处理变量", "visible": true },
+                { "name": "重新读取初始变量", "visible": true },
+                { "name": "清除旧楼层变量", "visible": false },
+                { "name": "快照楼层", "visible": false },
+                { "name": "重演楼层", "visible": false },
+                { "name": "重试额外模型解析", "visible": false }
+              ],
+              "enabled": true
+            },
+            "content": "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js'",
+            "data": {},
+            "enabled": true,
+            "id": "00000000-0000-0000-0000-000000000002",
+            "info": "",
+            "name": "MVUbeta",
+            "type": "script"
+          }
+        ],
+        "variables": {}
+      }
+    }
+  }
+}

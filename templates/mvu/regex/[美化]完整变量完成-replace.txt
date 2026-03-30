@@ -1,0 +1,52 @@
+<div style="width: 55%; margin: 15px auto; min-width: 280px;">
+  <details class="mvu-update-done" style="
+    background: #f5f5f5;
+    border: 1px solid #9e9e9e;
+    border-radius: 2px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  ">
+    <summary style="
+      padding: 6px 14px;
+      color: #616161;
+      cursor: pointer;
+      list-style: none;
+      font-weight: normal;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      letter-spacing: 1px;
+    ">
+      <span style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.1em;">&#9998;</span>
+        <span style="font-weight: bold;">变量已更新</span>
+      </span>
+      <span class="toggle-icon-done" style="font-size: 12px; color: #9e9e9e;">&#9660;</span>
+    </summary>
+    <div style="
+      padding: 10px 14px;
+      color: #424242;
+      line-height: 1.6;
+      background: rgba(255, 255, 255, 0.5);
+      border-top: 1px dashed #bdbdbd;
+      font-size: 13px;
+      white-space: pre-wrap;
+    ">$1</div>
+  </details>
+</div>
+<style>
+  .mvu-update-done div::-webkit-scrollbar { width: 3px; }
+  .mvu-update-done div::-webkit-scrollbar-track { background: transparent; }
+  .mvu-update-done div::-webkit-scrollbar-thumb { background: rgba(158,158,158,0.3); }
+  .mvu-update-done summary::-webkit-details-marker { display: none; }
+  .mvu-update-done summary::marker { display: none; }
+  .mvu-update-done summary:hover { background: rgba(0,0,0,0.04); }
+  .mvu-update-done[open] { border-color: #757575; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  .mvu-update-done[open] .toggle-icon-done { transform: rotate(180deg); }
+  .toggle-icon-done { transition: transform 0.3s ease; }
+  .mvu-update-done[open] > div { animation: mvuDoneShow 0.4s ease forwards; }
+  @keyframes mvuDoneShow { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+</style>

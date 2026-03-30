@@ -26,11 +26,11 @@ Show available commands:
 ```
 st-card-tools list-cards          List character cards
 st-card-tools read-card <name>    Read card JSON
-st-card-tools extract-card <name> Extract card to workspace
-st-card-tools apply-card <name>   Apply workspace back to PNG
+st-card-tools extract-card <name> Extract card + greetings + world book to workspace
+st-card-tools apply-card <name>   Apply workspace back to PNG + world book
 st-card-tools list-worlds         List world books
 st-card-tools read-world <name>   Read world book entries
-st-card-tools extract-world <name> Extract world to workspace
+st-card-tools extract-world <name> Extract world to workspace (entry .json + -content.txt)
 st-card-tools apply-world <name>  Apply workspace back to JSON
 ```
 </process>

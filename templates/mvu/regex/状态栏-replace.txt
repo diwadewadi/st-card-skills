@@ -1,0 +1,170 @@
+```html
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <style>
+  body { margin: 0; padding: 0; font-family: sans-serif; }
+
+  .status-wrap {
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    color: #333;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .tab-bar {
+    display: flex;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    border-radius: 6px 6px 0 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    padding: 8px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #666;
+    border: none;
+    border-right: 1px solid #eee;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    transition: color 0.2s, background 0.2s;
+    flex-shrink: 0;
+  }
+  .tab-btn:hover { color: #1a73e8; background: rgba(26,115,232,0.06); }
+  .tab-btn.active {
+    color: #1a73e8;
+    background: rgba(26,115,232,0.08);
+    box-shadow: inset 0 -2px 0 #1a73e8;
+    font-weight: bold;
+  }
+
+  .tab-panel { display: none; padding: 12px 14px; }
+  .tab-panel.active { display: block; }
+
+  .sec-title {
+    color: #1a73e8;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+
+  .row { display: flex; margin-bottom: 5px; line-height: 1.7; }
+  .lbl { color: #888; min-width: 56px; flex-shrink: 0; font-size: 11px; font-weight: bold; }
+  .val { color: #333; flex: 1; font-size: 12px; word-break: break-all; }
+
+  .divider { border: none; border-top: 1px dashed #ddd; margin: 10px 0; }
+
+  .favor-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .favor-track { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; border: 1px solid #ddd; }
+  .favor-fill { height: 100%; background: linear-gradient(90deg, #90caf9, #1a73e8); border-radius: 3px; transition: width 0.4s; }
+  .favor-num { color: #1a73e8; font-size: 12px; min-width: 28px; text-align: right; font-weight: bold; }
+
+  .empty-tip { color: #bbb; text-align: center; padding: 10px 0; font-size: 12px; }
+  </style>
+
+  <script type="module">
+    /*
+     * 通用前端状态栏示例
+     * 变量结构假设:
+     *   世界: { 当前时间, 当前地点 }
+     *   角色名: { 好感度(number), 心情(string), ... }
+     *
+     * 请根据实际变量结构修改 buildWorld / buildChars 中的字段路径
+     */
+
+    function buildWorld(data) {
+      const w = _.get(data, '世界', {});
+      $('#w-time').text(_.get(w, '当前时间', '—'));
+      $('#w-loc').text(_.get(w, '当前地点', '—'));
+    }
+
+    function buildChars(data) {
+      // 遍历所有非"世界"的顶层 key 作为角色
+      const tabBar = $('#tab-bar');
+      const panels = $('#panels');
+      tabBar.find('.char-tab').remove();
+      panels.find('.char-panel').remove();
+
+      Object.entries(data).forEach(([name, c], i) => {
+        if (name === '世界') return;
+        const pid = `cp-${i}`;
+        const favor = Math.min(100, Math.max(0, Number(_.get(c, '好感度', 0))));
+
+        tabBar.append(
+          `<button class="tab-btn char-tab" data-target="${pid}">${name}</button>`
+        );
+
+        // 自动列出角色下所有字段
+        let rows = '';
+        Object.entries(c).forEach(([key, val]) => {
+          if (key === '好感度') return; // 好感度单独用进度条展示
+          rows += `<div class="row"><span class="lbl">${key}</span><span class="val">${val}</span></div>`;
+        });
+
+        panels.append(`
+          <div id="${pid}" class="tab-panel char-panel">
+            <div class="sec-title">◆ ${name}</div>
+            <div class="favor-wrap">
+              <span class="lbl">好感度</span>
+              <div class="favor-track"><div class="favor-fill" style="width:${favor}%"></div></div>
+              <span class="favor-num">${favor}</span>
+            </div>
+            <hr class="divider">
+            ${rows}
+          </div>
+        `);
+      });
+    }
+
+    function switchTab(targetId) {
+      $('.tab-btn').removeClass('active');
+      $('.tab-panel').removeClass('active');
+      $(`[data-target="${targetId}"]`).addClass('active');
+      $(`#${targetId}`).addClass('active');
+    }
+
+    function refresh() {
+      const data = _.get(getAllVariables(), 'stat_data', {});
+      buildWorld(data);
+      buildChars(data);
+    }
+
+    async function init() {
+      await waitGlobalInitialized('Mvu');
+      switchTab('world-panel');
+      refresh();
+      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => refresh());
+      $(document).on('click', '.tab-btn', function () {
+        switchTab($(this).data('target'));
+      });
+    }
+
+    $(errorCatched(init));
+  </script>
+</head>
+<body>
+  <div class="status-wrap">
+    <div class="tab-bar" id="tab-bar">
+      <button class="tab-btn active" data-target="world-panel">世界</button>
+    </div>
+    <div id="panels">
+      <div id="world-panel" class="tab-panel active">
+        <div class="sec-title">◆ 世界</div>
+        <div class="row"><span class="lbl">时间</span><span class="val" id="w-time">—</span></div>
+        <div class="row"><span class="lbl">地点</span><span class="val" id="w-loc">—</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+```

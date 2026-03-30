@@ -1,0 +1,15 @@
+{
+  "id": "",
+  "scriptName": "[隐藏]变量更新",
+  "disabled": false,
+  "runOnEdit": true,
+  "findRegex": "/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g",
+  "replaceString": "",
+  "trimStrings": [],
+  "placement": [2],
+  "substituteRegex": 0,
+  "minDepth": null,
+  "maxDepth": null,
+  "markdownOnly": true,
+  "promptOnly": false
+}

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
+import { extractWorldToWorkspace, applyWorldFromWorkspace } from "./world-parser.js";
 
 const require = createRequire(import.meta.url);
 const extract = require("png-chunks-extract");
@@ -216,21 +217,87 @@ export function setCardField(
 
 /**
  * Extract a character card PNG into workspace files.
- * Creates: workspace/cards/{name}/card.json + avatar.png
+ * Creates: workspace/cards/{name}/card.json, avatar.png, greetings/*.txt, world/*
  */
 export function extractCardToWorkspace(
   pngPath: string,
-  workspaceDir: string
-): { cardJsonPath: string; avatarPath: string } {
-  const card = readCardFromPng(pngPath);
+  workspaceDir: string,
+  worldsDir?: string
+): { outDir: string; cardJsonPath: string; avatarPath: string; greetingFiles: string[]; regexFiles: string[]; worldDir?: string } {
+  const card = readCardFromPng(pngPath) as CharacterCardV2 & { world?: string; [k: string]: unknown };
   const cardName = card.data.name || path.basename(pngPath, ".png");
   const sanitized = sanitizeFilename(cardName);
   const outDir = path.join(workspaceDir, "cards", sanitized);
 
   fs.mkdirSync(outDir, { recursive: true });
 
+  // --- Extract greetings to txt files ---
+  const greetingsDir = path.join(outDir, "greetings");
+  fs.mkdirSync(greetingsDir, { recursive: true });
+  const greetingFiles: string[] = [];
+
+  if (card.data.first_mes) {
+    const fname = "000_first_mes.txt";
+    fs.writeFileSync(path.join(greetingsDir, fname), card.data.first_mes, "utf8");
+    greetingFiles.push(fname);
+  }
+  if (card.data.alternate_greetings) {
+    for (let i = 0; i < card.data.alternate_greetings.length; i++) {
+      const fname = `${String(i + 1).padStart(3, "0")}_greeting.txt`;
+      fs.writeFileSync(path.join(greetingsDir, fname), card.data.alternate_greetings[i], "utf8");
+      greetingFiles.push(fname);
+    }
+  }
+
+  // --- Extract regex scripts to individual files ---
+  const regexDir = path.join(outDir, "regex");
+  fs.mkdirSync(regexDir, { recursive: true });
+  const regexFiles: string[] = [];
+  const regexScripts = card.data.extensions?.regex_scripts;
+
+  if (Array.isArray(regexScripts)) {
+    for (let i = 0; i < regexScripts.length; i++) {
+      const script = regexScripts[i] as Record<string, unknown>;
+      const seq = String(i).padStart(3, "0");
+      const name = sanitizeFilename(String(script.scriptName || "unnamed"));
+      const baseName = `${seq}_${name}`;
+
+      const { replaceString, ...meta } = script;
+      fs.writeFileSync(
+        path.join(regexDir, `${baseName}-replace.txt`),
+        String(replaceString ?? ""),
+        "utf8"
+      );
+      fs.writeFileSync(
+        path.join(regexDir, `${baseName}.json`),
+        JSON.stringify(meta, null, 2),
+        "utf8"
+      );
+      regexFiles.push(`${baseName}.json`);
+    }
+  }
+
+  // Remove greetings from card.json (they live in .txt now)
+  const cardForJson = JSON.parse(JSON.stringify(card));
+  delete cardForJson.data.first_mes;
+  delete cardForJson.data.alternate_greetings;
+
+  // Remove V1 top-level fields that duplicate data.* (redundant)
+  const v1DuplicateFields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'mes_example', 'tags'];
+  for (const f of v1DuplicateFields) {
+    delete cardForJson[f];
+  }
+
+  // Remove embedded character_book — it's extracted to world/
+  delete cardForJson.data?.character_book;
+
+  // Remove regex_scripts — they're extracted to regex/
+  if (cardForJson.data?.extensions?.regex_scripts) {
+    delete cardForJson.data.extensions.regex_scripts;
+  }
+
   // Write card.json with _source for apply
-  const cardWithSource = { ...card, _source: pngPath };
+  const cardWithSource = { ...cardForJson, _source: pngPath };
   const cardJsonPath = path.join(outDir, "card.json");
   fs.writeFileSync(cardJsonPath, JSON.stringify(cardWithSource, null, 2), "utf8");
 
@@ -238,11 +305,25 @@ export function extractCardToWorkspace(
   const avatarPath = path.join(outDir, "avatar.png");
   fs.copyFileSync(pngPath, avatarPath);
 
-  return { cardJsonPath, avatarPath };
+  // --- Extract linked world book ---
+  let worldOutDir: string | undefined;
+  const worldName: string | undefined =
+    (card.data?.extensions?.world as string) || (card.world as string) || undefined;
+  if (worldName && worldsDir) {
+    const worldPath = path.join(worldsDir, worldName + ".json");
+    if (fs.existsSync(worldPath)) {
+      const worldTargetDir = path.join(outDir, "world");
+      const result = extractWorldToWorkspace(worldPath, outDir, "world");
+      worldOutDir = result.outDir;
+    }
+  }
+
+  return { outDir, cardJsonPath, avatarPath, greetingFiles, regexFiles, worldDir: worldOutDir };
 }
 
 /**
  * Apply card.json from workspace back to the original PNG.
+ * Also reads greetings/*.txt and applies world/ back.
  */
 export function applyCardFromWorkspace(
   cardDir: string,
@@ -262,13 +343,66 @@ export function applyCardFromWorkspace(
   const source: string = raw._source;
   const { _source, ...card } = raw;
 
+  // --- Read greetings from txt files ---
+  const greetingsDir = path.join(cardDir, "greetings");
+  if (fs.existsSync(greetingsDir)) {
+    const files = fs.readdirSync(greetingsDir).filter(f => f.endsWith(".txt")).sort();
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(greetingsDir, file), "utf8");
+      if (file.includes("first_mes")) {
+        card.data.first_mes = content;
+      } else {
+        if (!card.data.alternate_greetings) card.data.alternate_greetings = [];
+        card.data.alternate_greetings.push(content);
+      }
+    }
+  }
+
+  // --- Read regex scripts from regex/ files ---
+  const regexDir = path.join(cardDir, "regex");
+  if (fs.existsSync(regexDir)) {
+    const regexJsonFiles = fs.readdirSync(regexDir).filter(f => f.endsWith(".json")).sort();
+    if (regexJsonFiles.length > 0) {
+      const scripts: Record<string, unknown>[] = [];
+      for (const file of regexJsonFiles) {
+        const meta = JSON.parse(fs.readFileSync(path.join(regexDir, file), "utf8"));
+        const baseName = file.replace(/\.json$/, "");
+        const replacePath = path.join(regexDir, `${baseName}-replace.txt`);
+        const replaceString = fs.existsSync(replacePath)
+          ? fs.readFileSync(replacePath, "utf8")
+          : "";
+        scripts.push({ ...meta, replaceString });
+      }
+      if (!card.data.extensions) card.data.extensions = {};
+      card.data.extensions.regex_scripts = scripts;
+    }
+  }
+
   const target = outputPath || source;
   if (!target) {
     throw new Error("No output path and no _source in card.json");
   }
 
+  // --- Apply world book back and embed in card ---
+  const worldDir = path.join(cardDir, "world");
+  if (fs.existsSync(worldDir) && fs.existsSync(path.join(worldDir, "_meta.json"))) {
+    const worldTarget = applyWorldFromWorkspace(worldDir);
+    // Embed world book back into card.data.character_book for self-contained PNG
+    const worldData = JSON.parse(fs.readFileSync(worldTarget, "utf8"));
+    card.data.character_book = worldData;
+  }
+
+  // Restore V1 top-level fields from data.* for compatibility
+  const v1DuplicateFields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'mes_example', 'tags'] as const;
+  for (const f of v1DuplicateFields) {
+    if (card.data[f] !== undefined) {
+      (card as Record<string, unknown>)[f] = card.data[f];
+    }
+  }
+
   // Write card data into avatar.png (which has the image data)
   writeCardToPng(avatarPath, card as CharacterCardV2, target);
+
   return target;
 }
 

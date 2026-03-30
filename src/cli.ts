@@ -86,7 +86,9 @@ function resolveCardPath(nameOrPath: string): string {
     console.error("Error: No --st-root or --cards configured. Provide a full path.");
     process.exit(1);
   }
-  return path.join(cardsDir, nameOrPath);
+  // Auto-append .png if missing
+  const name = nameOrPath.toLowerCase().endsWith(".png") ? nameOrPath : nameOrPath + ".png";
+  return path.join(cardsDir, name);
 }
 
 function resolveWorldPath(nameOrPath: string): string {
@@ -97,7 +99,9 @@ function resolveWorldPath(nameOrPath: string): string {
     console.error("Error: No --st-root or --worlds configured. Provide a full path.");
     process.exit(1);
   }
-  return path.join(worldsDir, nameOrPath);
+  // Auto-append .json if missing
+  const name = nameOrPath.toLowerCase().endsWith(".json") ? nameOrPath : nameOrPath + ".json";
+  return path.join(worldsDir, name);
 }
 
 // ---- Filter out flags from positional args ----
@@ -214,8 +218,12 @@ try {
 
     case "extract-card": {
       if (!args[0]) { console.error("Usage: st-card-tools extract-card <name>"); process.exit(1); }
-      const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir);
-      console.log(`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`);
+      const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir, worldsDir || undefined);
+      const parts = [`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`];
+      if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
+      if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
+      if (result.worldDir) parts.push(`  world: ${result.worldDir}`);
+      console.log(parts.join("\n"));
       break;
     }
 
