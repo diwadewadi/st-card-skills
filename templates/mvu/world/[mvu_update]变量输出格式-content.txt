@@ -1,31 +1,61 @@
 ---
 变量输出格式:
   rule:
-    - you must output the update analysis and the actual update commands at once in the end of the next reply
-    - the update commands works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:
-      - replace: replace the value of existing paths
-      - delta: update the value of existing number paths by a delta value
-      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)
-      - remove
-      - move
-    - don't update field names starts with `_` as they are readonly, such as `_变量`
+    - you must output both analysis and patch in one response
+    - output only contain exactly one <UpdateVariable> block, with exactly one <Analysis> and one <JSONPatch>
+    - the patch must be a valid JSON array of operation objects only, no comments, no trailing commas, no extra text inside <JSONPatch>
+    - allowed operations are only: replace, delta, insert, remove, move
+    - do not update any field whose final key starts with `_`
+    - do not invent new paths: every path must be grounded in existing schema fields or existing runtime keys
+    - JSON Pointer must follow RFC 6901 escaping: `~` -> `~0`, `/` -> `~1`
+    - for number change on existing number field, prefer `delta`; use `replace` only when setting absolute value is necessary
+    - `replace` and `delta` require target path already exists
+    - `insert`:
+      - for object: path must be `/.../newKey` and parent object must exist
+      - for array append: path must be `/.../-`
+      - for array index insert: path must be `/.../{index}` with valid index
+      - for existing array fields, NEVER insert to the array root path `/.../arrayField`; you MUST use `/.../arrayField/-` (append) or `/.../arrayField/{index}`
+      - for list-like/event-log/history arrays, append a new entry with `insert` at `/.../arrayField/-`
+      - for existing arrays, prefer incremental update by default (`insert` to `/.../arrayField/-`); use `replace` on the whole array only when full reconstruction is explicitly required
+    - `remove` requires target path exists; do not remove required structural roots
+    - `move` requires both `from` exists and `to` parent exists; never move across incompatible types
+    - no redundant operations: do not emit duplicate writes to same path in one patch unless strictly ordered and necessary
+    - if one event implies multiple variable impacts, you must update all impacted fields, not a subset
+    - if no valid update is needed, output empty array `[]` and explain why in analysis
+
   format: |-
     <UpdateVariable>
-    <Analysis>$(IN ENGLISH, no more than 80 words)
-    - ${calculate time passed: ...}
-    - ${decide whether dramatic updates are allowed as it's in a special case or the time passed is more than usual: yes/no}
-    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}
+    <Analysis>
+    [Scene Anchor]
+    - IN ENGLISH
+    - put all reasoning only inside this single <Analysis> block
+    - do not output any extra analysis tag, code fence, or preface
+    - Current time/location: {{read from world state}}
+    - Player/character state: {{brief current action / condition}}
+    - Present characters: {{list characters currently in scene}}
+
+    [Variable Update Checklist]
+    - list all candidate variables touched by current reply
+    - mark each candidate as: update / no-update with short reason
+    - for each update, state expected change briefly
+    - explicitly check all top-level variable groups defined in the schema
+
+    [Skip Declaration]
+    - explicitly list variables not updated this turn and why
+
+    [Legality Check]
+    - check path legality and operation legality before finalizing
+    - confirm all relationship/stat changes have explicit event support
+    - if no valid update is needed, explain why and output [] in <JSONPatch>
     </Analysis>
     <JSONPatch>
     [
-      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },
-      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },
-      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },
-      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },
-      { "op": "remove", "path": "${/path/to/object/key}" },
-      { "op": "remove", "path": "${/path/to/array/0}" },
-      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },
-      ...
+      { "op": "delta", "path": "/path/to/existing/number", "value": 3 },
+      { "op": "replace", "path": "/path/to/existing/value", "value": "new value" },
+      { "op": "insert", "path": "/path/to/existing/object/newKey", "value": { "x": 1 } },
+      { "op": "insert", "path": "/path/to/existing/array/-", "value": "new item" },
+      { "op": "remove", "path": "/path/to/existing/object/key" },
+      { "op": "move", "from": "/path/from", "to": "/path/to" }
     ]
     </JSONPatch>
     </UpdateVariable>

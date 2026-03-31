@@ -69,9 +69,29 @@ import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artif
 `{{format_message_variable::stat_data}}` 是酒馆助手宏，发送时自动替换为 YAML 格式的变量内容。建议放在 depth 0（D0）位置，让 AI 知道这是最新数据。
 
 **变量更新规则** — 告诉 AI 什么时候更新、怎么更新
+
+用 `<Variable_update_rules>` 包裹，按分区组织，支持 `type: |-` 块描述复杂对象类型：
+
 ```yaml
----
+<Variable_update_rules>
 变量更新规则:
+
+  # ========================================
+  # 世界系统变量
+  # ========================================
+
+  世界:
+    当前时间:
+      check:
+        - 根据对话内容和剧情流逝自动更新时间
+    当前地点:
+      check:
+        - 随主角移动而更新，保持与剧情一致
+
+  # ========================================
+  # 角色变量
+  # ========================================
+
   角色名:
     好感度:
       type: number
@@ -82,30 +102,81 @@ import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artif
     心情:
       check:
         - 根据事件实时调整
+
+    物品栏:
+      type: |-
+        {
+          [物品名称: string]: {
+            数量: number;
+            类型: string;
+            描述: string;
+          }
+        }
+      check:
+        - ⚠️ 必须使用完整对象格式
+        - 获得或消耗物品时更新
+
+</Variable_update_rules>
 ```
 
+格式要点：
+- `<Variable_update_rules>` XML 包裹，帮助 AI 识别规则边界
+- `# ========` 分区标题，按系统模块组织变量
+- `type: |-` 多行块，用 TypeScript 风格描述复杂对象/数组的结构
+- `range:` 字段，标注数值变量的合法范围
+- `check:` 列表，定义每个变量的更新条件和约束
+
 **变量输出格式** — 告诉 AI 用什么格式输出更新命令
+
+包含两部分：详细的操作语义规则（rule）和结构化的分析模板（format）：
+
 ```yaml
 ---
 变量输出格式:
   rule:
-    - 在回复末尾输出更新分析和更新命令
-    - 更新命令遵循 JSON Patch (RFC 6902) 标准，支持 replace/delta/insert/remove/move
+    - you must output both analysis and patch in one response
+    - output only contain exactly one <UpdateVariable> block
+    - allowed operations: replace, delta, insert, remove, move
+    - do not update any field whose final key starts with `_`
+    - JSON Pointer must follow RFC 6901 escaping
+    - for number change, prefer `delta`; use `replace` only for absolute value
+    - `insert` for array append: path must be `/.../-`
+    - for existing arrays, prefer incremental update (`insert`) over full `replace`
+    - if no valid update is needed, output empty array `[]`
+    # ... 完整规则见模板文件
   format: |-
     <UpdateVariable>
-    <Analysis>$(英文，不超过80词)
-    - ${分析时间流逝}
-    - ${分析每个变量的变化}
+    <Analysis>
+    [Scene Anchor]
+    - IN ENGLISH
+    - Current time/location: {{read from world state}}
+    - Present characters: {{list characters in scene}}
+
+    [Variable Update Checklist]
+    - list all candidate variables, mark update / no-update
+    - for each update, state expected change briefly
+
+    [Skip Declaration]
+    - list variables not updated this turn and why
+
+    [Legality Check]
+    - check path and operation legality before finalizing
     </Analysis>
     <JSONPatch>
     [
-      { "op": "replace", "path": "/角色名/心情", "value": "开心" },
       { "op": "delta", "path": "/角色名/好感度", "value": 3 },
+      { "op": "replace", "path": "/角色名/心情", "value": "开心" },
       ...
     ]
     </JSONPatch>
     </UpdateVariable>
 ```
+
+Analysis 结构化段落说明：
+- `[Scene Anchor]` — 锚定当前场景的时间、地点、在场角色，防止 AI 更新脱离上下文
+- `[Variable Update Checklist]` — 逐变量检查，确保不遗漏受影响的字段
+- `[Skip Declaration]` — 显式声明未更新的变量及原因，减少遗漏
+- `[Legality Check]` — 最终校验路径合法性和操作合法性
 
 ### 4. 变量初始化（[InitVar] 世界书条目）
 
@@ -151,5 +222,3 @@ function refresh() {
   $('#mood').text(_.get(data, '角色名.心情', '—'));
 }
 ```
-
-
