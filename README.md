@@ -25,6 +25,9 @@ st-card-tools init-config --st-root "/path/to/SillyTavern" --workspace "./worksp
 
 # Or use the setup wizard in Claude Code
 /st:setup
+
+# In Codex, invoke the installed skill by name
+$st-setup
 ```
 
 ## CLI Tool (st-card-tools)
@@ -59,6 +62,13 @@ st-card-skills --uninstall --claude
 | Codex | `~/.codex/skills/st-*/` |
 | Gemini CLI | `~/.gemini/commands/st/` |
 
+Codex skill names use hyphens, for example:
+- `$st-setup`
+- `$st-help`
+- `$st-quick_start`
+- `$st-mvu`
+- `$st-image`
+
 ## Available Skills
 
 | Skill | Description |
@@ -67,6 +77,14 @@ st-card-skills --uninstall --claude
 | `/st:help` | Show all available commands and usage |
 | `/st:quick_start` | Learn tools & ask what user wants to do |
 | `/st:mvu` | Add or modify MVU variable system and frontend |
+| `/st:image` | Add image insertion system to a character card |
+
+Codex uses the same skills with these invocation names:
+- `st-setup`
+- `st-help`
+- `st-quick_start`
+- `st-mvu`
+- `st-image`
 
 ## MVU Variable System
 
@@ -79,6 +97,21 @@ st-card-skills --uninstall --claude
 - **Frontend status bar** (optional) — Real-time variable display with tab layout
 
 Templates are bundled in `templates/mvu/` (world book metadata, regex configs, beautification HTML).
+
+## Image Insertion System
+
+`/st:image` helps you add an image insertion system to any character card. It works by:
+
+1. **World book entries** tell the AI what images are available (directory of SFW/NSFW categories with numbered ranges)
+2. **AI outputs path tags** like `[img_sfw:SFW/人物微笑/3.jpg]` in its responses
+3. **Regex scripts** replace those tags with `<img>` HTML tags, loading images from your hosting URL
+
+Features:
+- **Custom hosting** — Works with any image host (GitGud, GitHub, S3, self-hosted, etc.)
+- **SFW + NSFW** — NSFW images render with blur by default, click to reveal
+- **Two modes** — Inline narrative images and structured data images (forum posts, chat messages, etc.)
+
+Templates are bundled in `templates/image/` (world book metadata, regex configs, img rendering HTML).
 
 ## License
 

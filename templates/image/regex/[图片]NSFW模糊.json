@@ -1,0 +1,15 @@
+{
+  "id": "",
+  "scriptName": "[图片]NSFW模糊",
+  "disabled": false,
+  "runOnEdit": true,
+  "findRegex": "/\\[img_nsfw:([^\\]]+)\\]/g",
+  "replaceString": "",
+  "trimStrings": [],
+  "placement": [2],
+  "substituteRegex": 0,
+  "minDepth": null,
+  "maxDepth": null,
+  "markdownOnly": true,
+  "promptOnly": false
+}

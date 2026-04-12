@@ -1,0 +1,87 @@
+<%
+let _imgManifest = { sfw: '(清单加载失败)', nsfw: '' };
+try {
+  const _res = await fetch('${MANIFEST_URL}');
+  _imgManifest = await _res.json();
+} catch(e) {}
+-%>
+<image_setting>
+<sfw_image>
+<sfw_image_rule>
+SFW插图使用规则：
+  - 路径支持任意层级嵌套，如 分类/[范围].jpg 或 分类/子分类/[范围].jpg
+  - 范围格式：[起始-结束]表示可用数字范围
+  - 实际使用时在范围内随机选择具体数字
+  - 严禁超出指定范围或修改路径
+  - 禁止在同一回复中使用相同数字的图片
+</sfw_image_rule>
+
+<SFW插图描述>
+<%- _imgManifest.sfw %>
+</SFW插图描述>
+
+使用说明：
+  - 完整路径 = SFW/ + 图片描述路径 + .jpg
+  - 示例：SFW/人物微笑/3.jpg
+  - 示例：SFW/角色A/微笑/3.jpg
+</sfw_image>
+
+<% if (_imgManifest.nsfw) { %>
+<nsfw_image>
+<nsfw_image_rule>
+NSFW插图使用规则：
+  - 路径支持任意层级嵌套，如 分类/[范围].jpg 或 分类/子分类/[范围].jpg
+  - 范围格式：[起始-结束]表示可用数字范围
+  - 实际使用时在范围内随机选择具体数字
+  - 严禁超出指定范围或修改路径
+  - 禁止在同一回复中使用相同数字的图片
+</nsfw_image_rule>
+
+<NSFW插图描述>
+<%- _imgManifest.nsfw %>
+</NSFW插图描述>
+
+使用说明：
+  - 完整路径 = NSFW/ + 图片描述路径 + .jpg
+  - 示例：NSFW/口交/15.jpg
+  - 示例：NSFW/1v1/传教士/15.jpg
+</nsfw_image>
+<% } %>
+
+<llm_image_insertion_rules>
+图片插入执行规范
+
+核心原则:
+  唯一来源: <sfw_image>和<nsfw_image>
+  格式统一: 严格遵循标签格式
+  禁止创造: 不得使用列表外的任何路径
+  禁止重复: 禁止在同一回复中使用相同数字的图片
+  生成范围: 图片在正文叙事、论坛结构等需要配图的场景中生成
+
+插入格式:
+  SFW标签: [img_sfw:SFW/图片路径/数字.jpg]
+  NSFW标签: [img_nsfw:NSFW/图片路径/数字.jpg]
+
+  路径要求:
+    - 图片路径可以是任意层级，与目录中列出的路径完全一致
+    - 数字选择: 在指定范围内随机
+    - 路径分隔: 使用"/"，禁止空格
+
+  时机判定:
+    - 内容匹配: 插图必须与文本内容完全对应
+    - 场景适配: 根据当前场景的SFW/NSFW程度选择对应分类
+
+  严格映射:
+    - 图片分类必须与文本描述的场景匹配
+    - 禁止使用与当前场景无关的图片分类
+
+format_example: |-
+  正确: [img_sfw:SFW/人物微笑/3.jpg]
+  正确: [img_sfw:SFW/角色A/微笑/3.jpg]
+  正确: [img_nsfw:NSFW/1v1/传教士/15.jpg]
+  正确: [img_nsfw:NSFW/角色A/骑乘/5.jpg]
+  错误: [img_sfw:人物微笑/3.jpg] /* 未添加SFW前缀 */
+  错误: [img_sfw:SFW / 人物微笑 / 3.jpg] /* 含有空格 */
+  错误: [img_sfw:SFW/不存在的分类/1.jpg] /* 使用了列表外的路径 */
+</llm_image_insertion_rules>
+</image_setting>

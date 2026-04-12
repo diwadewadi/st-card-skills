@@ -1,0 +1,15 @@
+{
+  "id": "",
+  "scriptName": "[图片]正文插图",
+  "disabled": false,
+  "runOnEdit": true,
+  "findRegex": "/\\[img_sfw:([^\\]]+)\\]/g",
+  "replaceString": "",
+  "trimStrings": [],
+  "placement": [2],
+  "substituteRegex": 0,
+  "minDepth": null,
+  "maxDepth": null,
+  "markdownOnly": true,
+  "promptOnly": false
+}

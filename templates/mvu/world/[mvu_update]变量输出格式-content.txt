@@ -29,7 +29,7 @@
     [Scene Anchor]
     - IN ENGLISH
     - put all reasoning only inside this single <Analysis> block
-    - do not output any extra analysis tag, code fence, or preface
+    - do not output any extra analysis tag, code fence, or preface such as <analysis_block>
     - Current time/location: {{read from world state}}
     - Player/character state: {{brief current action / condition}}
     - Present characters: {{list characters currently in scene}}
@@ -38,7 +38,22 @@
     - list all candidate variables touched by current reply
     - mark each candidate as: update / no-update with short reason
     - for each update, state expected change briefly
-    - explicitly check all top-level variable groups defined in the schema
+    - explicitly check at least:
+      - 世界.当前时间 / 当前地点
+      - 角色名.好感度 / 心情 / 正在做的事（for each character in scene）
+      - 角色名.物品栏
+      - 角色名.事件记录
+      - other impacted variables defined in the schema
+
+    [Intent Calibration]
+    - interpret user_input literally as the user role's in-character intent; do not overread it as manipulation / power / violence / coercion unless explicitly stated
+    - do not depict characters through dominance / commands / owner-servant framing / obedience / fawning / mind control / worship unless the user explicitly requests such portrayal
+    - independence check: preserve each character's core setting, agency, and behavioral consistency
+
+    [Logic Construction]
+    - worldview logic: ensure the scene, reactions, and updates fit established world rules and current context
+    - NPC internal logic: ensure each NPC's motive, knowledge, stance, and reaction remain internally consistent
+    - emotional intensity check: ensure reactions stay proportionate and are not excessive for the triggering event
 
     [Skip Declaration]
     - explicitly list variables not updated this turn and why
@@ -46,6 +61,7 @@
     [Legality Check]
     - check path legality and operation legality before finalizing
     - confirm all relationship/stat changes have explicit event support
+    - confirm all present character status fields are updated when needed
     - if no valid update is needed, explain why and output [] in <JSONPatch>
     </Analysis>
     <JSONPatch>

@@ -1,0 +1,4 @@
+<img src="${IMAGE_BASE_URL}$1"
+     style="max-width:100%;height:auto;border-radius:8px;margin:8px 0;cursor:pointer;display:block;"
+     loading="lazy"
+     onerror="this.style.display='none'" />

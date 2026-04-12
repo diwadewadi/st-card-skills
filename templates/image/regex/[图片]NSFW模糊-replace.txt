@@ -1,0 +1,7 @@
+<div style="display:inline-block;position:relative;margin:8px 0;">
+  <img src="${IMAGE_BASE_URL}$1"
+       style="max-width:100%;height:auto;border-radius:8px;filter:blur(15px);cursor:pointer;transition:filter 0.3s;display:block;"
+       loading="lazy"
+       onclick="this.style.filter=this.style.filter==='none'?'blur(15px)':'none'"
+       onerror="this.parentElement.style.display='none'" />
+</div>

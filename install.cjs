@@ -87,12 +87,32 @@ function extractField(frontmatter, field) {
 }
 
 /**
+ * Normalize a command/skill name for Codex skill discovery.
+ * Codex skill matching is based on the `name` field, so it should match
+ * the installed directory and `$skill-name` invocation form.
+ */
+function toCodexSkillName(name, fallback) {
+  const base = (name || fallback || '').trim().replace(/^\/+/, '');
+  return base.replace(/:/g, '-');
+}
+
+/**
+ * Rewrite Claude-style slash command references so Codex users see the
+ * matching `$skill-name` invocation in generated SKILL.md files.
+ */
+function convertBodyToCodex(body) {
+  return body.replace(/\/st:([a-zA-Z0-9_]+)/g, '$st-$1');
+}
+
+/**
  * Convert a Claude command .md to Codex SKILL.md format
  */
 function convertToCodexSkill(content, skillName) {
   const { frontmatter, body } = extractFrontmatter(content);
-  const name = extractField(frontmatter, 'name') || skillName;
+  const sourceName = extractField(frontmatter, 'name') || skillName;
+  const name = toCodexSkillName(sourceName, skillName);
   const description = extractField(frontmatter, 'description') || `st-card-tools skill: ${skillName}`;
+  const convertedBody = convertBodyToCodex(body.trimStart());
 
   const adapter = `<codex_skill_adapter>
 ## Skill Invocation
@@ -100,7 +120,17 @@ function convertToCodexSkill(content, skillName) {
 - Treat all user text after \`$${skillName}\` as arguments.
 </codex_skill_adapter>`;
 
-  return `---\nname: "${name}"\ndescription: "${description}"\n---\n\n${adapter}\n\n${body.trimStart()}`;
+  return `---\nname: "${name}"\ndescription: "${description}"\n---\n\n${adapter}\n\n${convertedBody}`;
+}
+
+/**
+ * Detect the current runtime for first-time auto install.
+ */
+function detectPreferredRuntime() {
+  if (process.env.CODEX_HOME) return 'codex';
+  if (process.env.CLAUDE_CONFIG_DIR) return 'claude';
+  if (process.env.GEMINI_CONFIG_DIR) return 'gemini';
+  return null;
 }
 
 /**
@@ -306,7 +336,11 @@ function run(runtimes) {
   }
 
   if (!hasUninstall) {
-    console.log(`  ${dim}Restart your coding tool to use /st:setup and /st:help${reset}\n`);
+    if (runtimes.length === 1 && runtimes[0] === 'codex') {
+      console.log(`  ${dim}Restart Codex to use $st-setup and $st-help${reset}\n`);
+    } else {
+      console.log(`  ${dim}Restart your coding tool to load the installed skills${reset}\n`);
+    }
   }
 }
 
@@ -326,8 +360,14 @@ if (hasAuto) {
     console.log(`  Updating skills for: ${detected.map(r => RUNTIMES[r].label).join(', ')}...`);
     run(detected);
   } else {
-    // First install: default to claude
-    run(['claude']);
+    const preferred = detectPreferredRuntime();
+    if (preferred) {
+      console.log(`  No existing install found, detected ${RUNTIMES[preferred].label}.`);
+      run([preferred]);
+    } else {
+      console.log(`  ${yellow}No runtime detected for auto-install.${reset}`);
+      console.log(`  ${dim}Run st-card-skills --codex, --claude, --gemini, or --all after install.${reset}\n`);
+    }
   }
 } else if (selectedRuntimes.length > 0) {
   run(selectedRuntimes);
