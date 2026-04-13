@@ -1,25 +1,73 @@
 <template>
-  <div class="p-3 text-sm">
-    <!-- Status bar UI — displayed after each AI message -->
-    <!-- Access MVU data via the store -->
-    <div class="flex items-center gap-2 mb-2">
-      <span class="font-bold">Status</span>
-    </div>
+  <div class="card">
+    <WorldSection />
+    <FavorabilityBar />
+    <TabNav v-model="active_tab" :tabs="tabs" />
 
-    <!-- Example: display a variable -->
-    <!-- <div>Mood: {{ store.data.character_name?.mood ?? '—' }}</div> -->
-    <!-- <div>Affection: {{ store.data.character_name?.affection ?? 0 }}/100</div> -->
+    <div v-if="active_tab" class="content-area">
+      <div v-if="active_tab === 'character'" class="tab-pane active">
+        <CharacterPanel />
+      </div>
+      <div v-else-if="active_tab === 'inventory'" class="tab-pane active">
+        <InventoryPanel />
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineMvuDataStore } from '@util/mvu-store';
-import { Schema } from '../../schema';
+import CharacterPanel from './components/CharacterPanel.vue';
+import FavorabilityBar from './components/FavorabilityBar.vue';
+import InventoryPanel from './components/InventoryPanel.vue';
+import TabNav from './components/TabNav.vue';
+import WorldSection from './components/WorldSection.vue';
 
-const useStatStore = defineMvuDataStore(Schema, { type: 'message', message_id: -1 });
-const store = useStatStore();
+const tabs = [
+  { id: 'character', label: '角色情报' },
+  { id: 'inventory', label: '持有物品' },
+];
+
+const active_tab = useLocalStorage<string | null>('status_bar:active_tab', null);
 </script>
 
-<style scoped>
-/* Tailwind classes are available in iframe mode */
+<style lang="scss" scoped>
+.card {
+  width: 100%;
+  max-width: 720px;
+  background-color: var(--c-mint-cream);
+  border: 3px solid var(--c-granite);
+  box-shadow: 5px 5px 0px rgba(60, 73, 63, 0.16);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-archive);
+  color: var(--c-granite);
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 0 auto;
+}
+
+.content-area {
+  padding: 12px;
+  min-height: 0;
+}
+
+.tab-pane {
+  display: none;
+  animation: fadeEffect 0.4s;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes fadeEffect {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>

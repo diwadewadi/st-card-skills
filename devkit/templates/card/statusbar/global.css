@@ -1,0 +1,17 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* 配色方案 */
+  --c-granite: #3c493f;
+  --c-grey-olive: #7e8d85;
+  --c-ash-grey: #b3bfb8;
+  --c-mint-cream: #f0f7f4;
+  --c-celadon: #a2e3c4;
+
+  /* 字体 */
+  --font-archive: 'Courier New', 'Microsoft YaHei', monospace;
+}
