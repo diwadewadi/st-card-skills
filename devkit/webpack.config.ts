@@ -137,9 +137,26 @@ function discoverEntries(workspace: string): EntryInfo[] {
   const cardsDir = path.join(workspace, 'cards');
   if (!fs.existsSync(cardsDir)) return [];
 
-  // Find all index files under any card's src/ directory
-  const pattern = 'cards/*/src/**/index.{ts,tsx,js,jsx}';
-  const scripts = fs.globSync(pattern, { cwd: workspace });
+  const scripts: string[] = [];
+  const scriptNames = new Set(['index.ts', 'index.tsx', 'index.js', 'index.jsx']);
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+      if (!scriptNames.has(entry.name)) continue;
+      scripts.push(path.relative(workspace, fullPath));
+    }
+  };
+
+  for (const cardName of fs.readdirSync(cardsDir, { withFileTypes: true })) {
+    if (!cardName.isDirectory()) continue;
+    const srcDir = path.join(cardsDir, cardName.name, 'src');
+    if (!fs.existsSync(srcDir)) continue;
+    walk(srcDir);
+  }
 
   // Deduplicate: if a parent dir already has an entry, skip children
   const sorted = scripts.sort();

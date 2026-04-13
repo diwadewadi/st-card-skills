@@ -7,7 +7,7 @@
  * Clean room implementation — MIT License
  */
 
-import type { App, Reactive } from 'vue';
+import { inject, reactive, readonly, type App, type Reactive } from 'vue';
 
 // ---------------------------------------------------------------------------
 // Context injected into each streaming message component

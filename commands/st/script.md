@@ -177,10 +177,59 @@ export const settings = loadSettings();
 ```
 
 13. **生命周期管理要点**:
-    - 始终在 `$(() => { ... })` 中初始化
-    - 始终在 `$(window).on('pagehide', ...)` 中清理
+    - 始终在 `$(() => { ... })` 中初始化，**禁止** `DOMContentLoaded`（iframe 通过 `$('body').load()` 加载时不触发）
+    - 始终在 `$(window).on('pagehide', ...)` 中清理，**禁止** `unload` 事件
     - 所有 `eventOn` 返回的 `{ stop }` 都要在卸载时调用
     - 如果使用 `await waitGlobalInitialized('Mvu')`，确保在 `$()` 回调中
+    - 不要在全局作用域中直接执行代码，始终在加载回调中执行
+
+14. **特殊导入方式**:
+    ```typescript
+    // 导入文件内容为字符串
+    import html_content from './file.html?raw';
+    import json_content from './data.json?raw';
+
+    // 经过 webpack 编译后导入（ts→js, scss→css）
+    import js_content from './script.ts?raw';
+    import css_content from './style.scss?raw';
+
+    // html-loader 最小化导入
+    import html from './file.html';
+
+    // markdown → html
+    import markdown from './file.md';
+    ```
+
+15. **日志与错误处理**:
+    - 关键节点使用 `console.info` 简洁记录日志，保持日志与代码逻辑一致
+    - 可恢复错误使用 `console.warn` / `console.error`
+    - 致命错误使用 `throw Error`，并用 `errorCatched` 包裹顶部函数：
+      ```typescript
+      function init() { /* ... */ }
+      $(() => { errorCatched(init)(); });
+      ```
+
+16. **聊天切换时重载**:
+    使用 `util/script.ts` 中的 `reloadOnChatChange()` 工具函数在聊天文件变更时重新载入脚本：
+    ```typescript
+    import { reloadOnChatChange } from '../../util/script';
+
+    $(() => {
+      reloadOnChatChange();
+      // 其他初始化逻辑...
+    });
+    ```
+
+17. **在脚本中使用 Vue**:
+    脚本也可以使用 Vue 来构建设置界面等。注意事项：
+    - `createRouter()` 不能写在 `$(() => {})` 中，必须在全局执行
+    - 使用 `createMemoryHistory()` 创建路由（iframe 环境限制）
+    - 监听 Vue 响应式数据变化并存入酒馆变量时，先用 `klona()` 去除 proxy 层：
+      ```typescript
+      const Settings = z.object({ /* ... */ });
+      const settings = ref(Settings.parse(getVariables({ type: 'script', script_id: getScriptId() })));
+      watchEffect(() => replaceVariables(klona(settings.value), { type: 'script', script_id: getScriptId() }));
+      ```
 
 ## Phase 4: 构建集成
 

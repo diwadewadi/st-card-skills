@@ -114,6 +114,113 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
     - `SillyTavern.callGenericPopup(content, type)` — 弹窗
     - `eventOn(event, handler)` — 监听事件
 
+## 编码规范（所有前端界面必须遵守）
+
+### index.html 约束
+
+前端界面的 `index.html` 仅可填写静态 `<body>` 内容，所有样式、代码、外部依赖都通过 TypeScript 导入：
+
+```html
+<head>
+  <!-- 保留空 <head>，webpack 打包时自动注入样式和脚本 -->
+</head>
+<body>
+  <!-- 写 <div id="app"></div> 交给 vue 渲染，或写静态 HTML 元素 -->
+</body>
+```
+
+- **禁止** `<link rel="stylesheet" href="./index.css">` — 应在 TS 中 `import './index.scss'` 或在 Vue 组件 `<style lang="scss">` 中书写
+- **禁止** `<script src="./index.ts">` — `index.ts` 由 webpack 自动打包注入
+- **禁止** `<img src="">` 空 src 占位 — 要么引用实际图片，要么不写 src 属性，否则 webpack 打包报错
+
+### iframe 适配规则
+
+前端界面以无沙盒 iframe 形式嵌入酒馆消息楼层，必须遵守以下 CSS 约束：
+
+- **禁止使用 `vh` 单位** — 会受宿主高度影响。使用 `width` + `aspect-ratio` 让高度根据宽度动态调整
+- **避免** `min-height`、`overflow: auto` 等会强制撑高父容器的属性
+- **禁止** 主体内容使用 `position: absolute` 等脱离文档流的样式
+- 页面整体应适配容器宽度，**不产生横向滚动条**
+- 如果样式更适合卡片形状，则不要有背景颜色（除非用户明确要求）
+
+### 图标
+
+可以任意使用 **FontAwesome 免费图标**，无需额外导入。
+
+### 特殊导入方式
+
+```typescript
+// 导入文件内容为字符串
+import html_content from './file.html?raw';
+import json_content from './data.json?raw';
+
+// 经过 webpack 编译后导入（ts→js, scss→css）
+import js_content from './script.ts?raw';
+import css_content from './style.scss?raw';
+
+// html-loader 最小化导入
+import html from './file.html';
+
+// markdown → html
+import markdown from './file.md';
+
+// Vue 组件（直接支持）
+import Component from './Component.vue';
+
+// 全局 SCSS（自动注入到 <head>）
+import './index.scss';
+```
+
+### 样式最佳实践
+
+- **优先使用 Tailwind CSS** 在 Vue 组件 `<template>` 内直接书写
+- 无法用 Tailwind 实现时，使用 `<style scoped>` 标签
+- 项目原生支持 Tailwind CSS，无需导入任何 CSS 文件
+
+### Vue 最佳实践
+
+- **路由**: iframe 环境下必须使用 `createMemoryHistory()`，不能使用 `createWebHistory()`
+  ```typescript
+  import { createRouter, createMemoryHistory } from 'vue-router';
+  const router = createRouter({ history: createMemoryHistory(), routes });
+  ```
+  注意：`createRouter()` 不能写在 `$(() => {})` 中，必须在全局执行
+
+- **响应式数据持久化**: 使用 `klona()` 去除 Vue proxy 层后再存入酒馆变量
+  ```typescript
+  const Settings = z.object({ /* ... */ });
+  const settings = ref(Settings.parse(getVariables({ type: 'script', script_id: getScriptId() })));
+  watchEffect(() => replaceVariables(klona(settings.value), { type: 'script', script_id: getScriptId() }));
+  ```
+
+- **Pinia + Zod 管理数据**: 推荐用 Pinia store + Zod schema 实现类型安全的响应式数据读写
+  ```typescript
+  const Settings = z.object({ button_selected: z.boolean().default(false) }).prefault({});
+  export const useSettingsStore = defineStore('settings', () => {
+    const settings = ref(Settings.parse(getVariables({ type: 'script', script_id: getScriptId() })));
+    watchEffect(() => {
+      replaceVariables(klona(settings.value), { type: 'script', script_id: getScriptId() });
+    });
+    return { settings };
+  });
+  ```
+
+### 生命周期
+
+- **加载时执行**: 始终用 `$(() => { ... })`，**禁止** `DOMContentLoaded`（因为 iframe 通过 `$('body').load()` 加载时不触发）
+- **卸载时执行**: 使用 `$(window).on('pagehide', ...)`,**禁止** `unload` 事件
+- **重载**: 使用 `window.location.reload()`
+
+### 日志与错误处理
+
+- 关键节点使用 `console.info` 简洁记录日志
+- 可恢复错误使用 `console.warn` / `console.error`
+- 致命错误使用 `throw Error`，并用 `errorCatched` 包裹顶部函数：
+  ```typescript
+  function init() { /* ... */ }
+  $(() => { errorCatched(init)(); });
+  ```
+
 ## Phase 4: 构建与集成
 
 15. **构建**: 在 devkit 目录运行 `pnpm build`（或 `pnpm dev` 进入 watch 模式）。
