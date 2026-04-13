@@ -65,9 +65,23 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
 
 8. **讨论界面布局和交互**: 与用户确认具体的 UI 元素、布局、颜色方案、交互行为。
 
-## Phase 2: 项目脚手架
+## Phase 2: 方案规划（强制）
 
-9. **创建项目目录**: 在角色卡工作区下创建 `src/` 子目录。提取角色卡后工作区路径为 `workspace/cards/<cardname>/`，在其下创建 `src/<模块名>/` 目录（如 `src/statusbar/`、`src/panel/` 等）。
+> **⚠️ 强制要求**: 在编写或修改任何代码之前，必须先进入 Plan 模式，设计完整的实现方案并获得用户批准。禁止跳过此步骤直接动手写代码。
+
+9. **进入 Plan 模式**: 调用 `EnterPlanMode` 工具，基于 Phase 1 收集到的需求，制定详细的实现计划。计划应包含：
+    - 需要创建/修改的文件列表及每个文件的职责
+    - 组件结构与层级关系
+    - 数据流设计（Props / Pinia Store / MVU 变量绑定方式）
+    - 关键交互逻辑的实现思路
+    - 样式方案（布局策略、响应式适配、颜色方案）
+    - 集成方式（状态栏正则注入 / 面板脚本加载 / 流式挂载）
+
+10. **等待用户批准**: 通过 `ExitPlanMode` 提交方案，等待用户审阅和批准后，方可进入下一阶段。如用户提出修改意见，需更新方案并重新提交。
+
+## Phase 3: 项目脚手架
+
+11. **创建项目目录**: 在角色卡工作区下创建 `src/` 子目录。提取角色卡后工作区路径为 `workspace/cards/<cardname>/`，在其下创建 `src/<模块名>/` 目录（如 `src/statusbar/`、`src/panel/` 等）。
 
     最终目录结构：
     ```
@@ -87,27 +101,27 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
           index.html
     ```
 
-10. **复制对应模板**: 根据界面类型，从 `devkit/templates/` 复制文件到 `workspace/cards/<cardname>/src/<模块名>/`：
+12. **复制对应模板**: 根据界面类型，从 `devkit/templates/` 复制文件到 `workspace/cards/<cardname>/src/<模块名>/`：
     - 面板 → 复制 `templates/panel/` 的 App.vue + index.ts + index.html
     - 流式 → 复制 `templates/streaming/` 的 App.vue + index.ts
     - 状态栏 → 复制 `templates/card/statusbar/` 的 App.vue + index.ts + index.html
 
-11. **如需 MVU**: 在 `workspace/cards/<cardname>/src/` 下创建 `schema.ts`，参考 `templates/card/schema.ts` 定义 Zod 变量结构。
+13. **如需 MVU**: 在 `workspace/cards/<cardname>/src/` 下创建 `schema.ts`，参考 `templates/card/schema.ts` 定义 Zod 变量结构。
 
-## Phase 3: 组件开发
+## Phase 4: 组件开发
 
-12. **编写 Vue 组件**: 在项目目录中编写 `.vue` 文件。技术要求：
+14. **编写 Vue 组件**: 在项目目录中编写 `.vue` 文件。技术要求：
     - 使用 `<script setup lang="ts">` 语法
     - 使用 Tailwind CSS 做样式（iframe 模式下隔离，不影响酒馆）
     - 可使用 Pinia 做状态管理
     - 可使用 VueUse composables（useIntervalFn、watchIgnorable 等已自动导入）
 
-13. **数据绑定**（如需要）:
+15. **数据绑定**（如需要）:
     - **MVU 变量** → 使用 `defineMvuDataStore(Schema, { type: 'message', message_id: -1 })`
     - **MVU 事件** → 使用 `eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, callback)`
     - **直接变量** → 使用 `getAllVariables().stat_data`
 
-14. **调用 SillyTavern API**（按需）:
+16. **调用 SillyTavern API**（按需）:
     - `SillyTavern.chat` — 读取聊天记录
     - `SillyTavern.registerMacro(key, fn)` — 注册自定义宏
     - `SillyTavern.registerFunctionTool(tool)` — 注册 AI 可调用的工具
@@ -221,14 +235,14 @@ import './index.scss';
   $(() => { errorCatched(init)(); });
   ```
 
-## Phase 4: 构建与集成
+## Phase 5: 构建与集成
 
-15. **构建**: 在 devkit 目录运行 `pnpm build`（或 `pnpm dev` 进入 watch 模式）。
+17. **构建**: 在 devkit 目录运行 `pnpm build`（或 `pnpm dev` 进入 watch 模式）。
     - Webpack 会自动发现 `workspace/cards/*/src/` 下的所有入口
     - 编译输出到对应卡片目录的 `dist/`（如 `workspace/cards/<cardname>/dist/statusbar/index.html`）
     - 如果 workspace 路径非默认，使用 `pnpm dev --env workspace=<path>` 指定
 
-16. **集成到角色卡**: 根据界面类型选择集成方式：
+18. **集成到角色卡**: 根据界面类型选择集成方式：
 
     **状态栏** → 添加一个正则脚本到角色卡：
     - 在工作区 `regex/` 目录添加一个正则，匹配 `<StatusPlaceHolderImpl/>`，替换为加载编译后 HTML 的代码
@@ -241,16 +255,16 @@ import './index.scss';
     - 如果上传到 GitHub/CDN → 使用 jsDelivr URL
     - 也可以直接将编译后的 JS 代码粘贴到 `-content.js` 中
 
-17. **写回**: 运行 `st-card-tools apply-card <name>` 将修改写回角色卡。
+19. **写回**: 运行 `st-card-tools apply-card <name>` 将修改写回角色卡。
 
-## Phase 5: 开发调试
+## Phase 6: 开发调试
 
-18. **开发流程**:
+20. **开发流程**:
     - `pnpm dev`（在 devkit 目录）启动 Webpack watch 模式，修改后自动重新编译
     - 编译完成后运行 `st-card-tools apply-card <name>` 写回角色卡
     - 在 SillyTavern 中重新加载角色卡查看效果
 
-19. **验证清单**:
+21. **验证清单**:
     - [ ] 界面正确渲染
     - [ ] 变量数据正确绑定（如使用 MVU）
     - [ ] 移动端适配

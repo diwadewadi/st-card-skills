@@ -50,9 +50,24 @@ description: Create TavernHelper scripts for a character card (events, slash com
 
 8. **讨论具体功能需求**: 确认脚本的详细行为、触发条件、输入输出。
 
-## Phase 2: 脚本创建
+## Phase 2: 方案规划（强制）
 
-9. **创建项目目录**: 在角色卡工作区下创建 `src/` 子目录。提取角色卡后工作区路径为 `workspace/cards/<cardname>/`，在其下创建 `src/<脚本名>/` 目录。
+> **⚠️ 强制要求**: 在编写或修改任何代码之前，必须先进入 Plan 模式，设计完整的实现方案并获得用户批准。禁止跳过此步骤直接动手写代码。
+
+9. **进入 Plan 模式**: 调用 `EnterPlanMode` 工具，基于 Phase 1 收集到的需求，制定详细的实现计划。计划应包含：
+    - 需要创建/修改的文件列表及每个文件的职责
+    - 脚本类型选择的理由（事件监听 / 斜杠命令 / 宏 / 函数工具等）
+    - 核心逻辑的实现思路与数据流
+    - 需要使用的 API 列表及调用方式
+    - 生命周期管理方案（初始化、清理、重载）
+    - 与现有脚本/MVU 变量的交互方式（如适用）
+    - 集成方式（写入 scripts/ 目录 / 远程加载）
+
+10. **等待用户批准**: 通过 `ExitPlanMode` 提交方案，等待用户审阅和批准后，方可进入下一阶段。如用户提出修改意见，需更新方案并重新提交。
+
+## Phase 3: 脚本创建
+
+11. **创建项目目录**: 在角色卡工作区下创建 `src/` 子目录。提取角色卡后工作区路径为 `workspace/cards/<cardname>/`，在其下创建 `src/<脚本名>/` 目录。
 
     最终目录结构：
     ```
@@ -71,13 +86,13 @@ description: Create TavernHelper scripts for a character card (events, slash com
           index.js
     ```
 
-10. **复制脚本模板**: 从 `devkit/templates/script/` 复制 `index.ts` 到 `workspace/cards/<cardname>/src/<脚本名>/`。
+12. **复制脚本模板**: 从 `devkit/templates/script/` 复制 `index.ts` 到 `workspace/cards/<cardname>/src/<脚本名>/`。
 
-11. **如需设置界面**: 额外创建 `settings.vue` 和 `settings.ts`。
+13. **如需设置界面**: 额外创建 `settings.vue` 和 `settings.ts`。
 
-## Phase 3: 脚本编写
+## Phase 4: 脚本编写
 
-12. **编写 TypeScript 脚本**: 根据需求实现功能。核心模式：
+14. **编写 TypeScript 脚本**: 根据需求实现功能。核心模式：
 
 ### 事件监听
 ```typescript
@@ -176,14 +191,14 @@ function saveSettings(settings: typeof DEFAULTS) {
 export const settings = loadSettings();
 ```
 
-13. **生命周期管理要点**:
+15. **生命周期管理要点**:
     - 始终在 `$(() => { ... })` 中初始化，**禁止** `DOMContentLoaded`（iframe 通过 `$('body').load()` 加载时不触发）
     - 始终在 `$(window).on('pagehide', ...)` 中清理，**禁止** `unload` 事件
     - 所有 `eventOn` 返回的 `{ stop }` 都要在卸载时调用
     - 如果使用 `await waitGlobalInitialized('Mvu')`，确保在 `$()` 回调中
     - 不要在全局作用域中直接执行代码，始终在加载回调中执行
 
-14. **特殊导入方式**:
+16. **特殊导入方式**:
     ```typescript
     // 导入文件内容为字符串
     import html_content from './file.html?raw';
@@ -200,7 +215,7 @@ export const settings = loadSettings();
     import markdown from './file.md';
     ```
 
-15. **日志与错误处理**:
+17. **日志与错误处理**:
     - 关键节点使用 `console.info` 简洁记录日志，保持日志与代码逻辑一致
     - 可恢复错误使用 `console.warn` / `console.error`
     - 致命错误使用 `throw Error`，并用 `errorCatched` 包裹顶部函数：
@@ -209,7 +224,7 @@ export const settings = loadSettings();
       $(() => { errorCatched(init)(); });
       ```
 
-16. **聊天切换时重载**:
+18. **聊天切换时重载**:
     使用 `util/script.ts` 中的 `reloadOnChatChange()` 工具函数在聊天文件变更时重新载入脚本：
     ```typescript
     import { reloadOnChatChange } from '../../util/script';
@@ -220,7 +235,7 @@ export const settings = loadSettings();
     });
     ```
 
-17. **在脚本中使用 Vue**:
+19. **在脚本中使用 Vue**:
     脚本也可以使用 Vue 来构建设置界面等。注意事项：
     - `createRouter()` 不能写在 `$(() => {})` 中，必须在全局执行
     - 使用 `createMemoryHistory()` 创建路由（iframe 环境限制）
@@ -231,14 +246,14 @@ export const settings = loadSettings();
       watchEffect(() => replaceVariables(klona(settings.value), { type: 'script', script_id: getScriptId() }));
       ```
 
-## Phase 4: 构建集成
+## Phase 5: 构建集成
 
-14. **构建**: 在 devkit 目录运行 `pnpm build`。
+20. **构建**: 在 devkit 目录运行 `pnpm build`。
     - Webpack 自动发现 `workspace/cards/*/src/` 下的所有入口
     - 编译输出到对应卡片目录的 `dist/`（如 `workspace/cards/<cardname>/dist/my-script/index.js`）
     - 如果 workspace 路径非默认，使用 `pnpm build --env workspace=<path>` 指定
 
-15. **集成到角色卡**: 两种方式：
+21. **集成到角色卡**: 两种方式：
 
     **方式 A — 写入 scripts/ 目录**（推荐，extract-card 已提取酒馆助手脚本到此目录）：
     在工作区 `scripts/` 目录添加或修改脚本文件：
@@ -266,22 +281,22 @@ export const settings = loadSettings();
     **方式 B — 远程加载**（适合复杂脚本，支持自动更新）：
     将编译后的 JS 上传到 GitHub 等平台，然后在 `-content.js` 中 import URL。
 
-16. **写回**: 运行 `st-card-tools apply-card <name>` 写回角色卡。
+22. **写回**: 运行 `st-card-tools apply-card <name>` 写回角色卡。
 
-## Phase 5: 测试与调试
+## Phase 6: 测试与调试
 
-17. **开发流程**:
+23. **开发流程**:
     - `pnpm dev`（在 devkit 目录）启动 Webpack watch 模式，修改后自动重新编译
     - 编译完成后运行 `st-card-tools apply-card <name>` 写回角色卡
     - 在 SillyTavern 中重新加载角色卡查看效果
 
-18. **调试方法**:
+24. **调试方法**:
     - 在酒馆页面按 F12 打开控制台查看日志
     - 使用 `console.log` 在脚本中输出调试信息
     - 使用 `toastr.info('message')` 在界面上显示通知
     - 检查 Source Maps 定位源码位置
 
-19. **验证清单**:
+25. **验证清单**:
     - [ ] 脚本正确加载（控制台无报错）
     - [ ] 事件监听器正常触发
     - [ ] 自定义宏/斜杠命令可用
