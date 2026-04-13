@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "types": ["jquery", "lodash", "toastr"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@util/*": ["./util/*"],
+      "@types/*": ["./types/*"]
+    },
+    "moduleDetection": "auto",
+    "moduleResolution": "bundler",
+    "allowUmdGlobalAccess": true,
+    "allowSyntheticDefaultImports": true,
+    "strictBindCallApply": true,
+    "allowJs": true,
+    "checkJs": false,
+    "sourceMap": true,
+    "strict": true,
+    "jsx": "preserve",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "types",
+    "util",
+    "templates",
+    "*.d.ts"
+  ],
+  "exclude": [
+    "**/dist/**",
+    "**/node_modules/**"
+  ],
+  "_comment": "Workspace source files (workspace/cards/*/src/) are compiled by ts-loader with transpileOnly. If your IDE needs them, add your workspace path to 'include' manually."
+}

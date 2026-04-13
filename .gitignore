@@ -1,3 +1,6 @@
 node_modules/
 dist/
 workspace/
+devkit/node_modules/
+devkit/auto-imports.d.ts
+devkit/components.d.ts

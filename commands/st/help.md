@@ -32,6 +32,16 @@ Output the following command reference:
 |------|------|
 | `/st:image` | 为角色卡添加图片插入功能（SFW/NSFW，支持自定义图片托管） |
 
+### 复杂前端界面（devkit）
+| 技能 | 说明 |
+|------|------|
+| `/st:frontend` | 为角色卡创建 Vue 3 交互式前端（状态面板、物品栏、战斗 UI、流式楼层界面等） |
+
+### 酒馆脚本开发（devkit）
+| 技能 | 说明 |
+|------|------|
+| `/st:script` | 为角色卡编写酒馆助手脚本（事件监听、斜杠命令、自定义宏、函数工具等） |
+
 ### 世界书命令
 | 命令 | 说明 |
 |------|------|
@@ -75,6 +85,46 @@ extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 关联世界
     *-meta.json                  世界书条目设置模板
     regex-scripts.json           基础正则脚本模板
 ```
+
+### devkit 开发环境
+```
+devkit/                        前端 & 脚本开发工具包（编译器、类型、工具函数）
+  package.json                 依赖配置（Vue 3, Tailwind, Webpack, Pinia, Zod...）
+  webpack.config.ts            构建配置（自动发现 workspace/cards/*/src/ 入口）
+  tsconfig.json                TypeScript 配置
+  types/                       SillyTavern & MVU & 酒馆助手 API 类型定义
+  util/
+    mvu-store.ts               MVU Pinia Store 工具（defineMvuDataStore）
+    streaming.ts               流式楼层渲染器（mountStreamingMessages）
+    helpers.ts                 通用工具函数
+  templates/
+    panel/                     全局面板模板（App.vue + index.ts + index.html）
+    streaming/                 流式楼层界面模板（App.vue + index.ts）
+    script/                    脚本模板（index.ts）
+    card/                      角色卡模板（schema.ts + 状态栏 + MVU 脚本）
+
+workspace/cards/<cardname>/    角色卡工作区（st-card-tools extract-card 提取）
+  card.json                    角色卡元数据
+  greetings/                   开场白
+  regex/                       正则脚本
+  world/                       世界书条目
+  src/                         ★ 前端/脚本源码（在此创建子目录开发）
+    statusbar/                 示例：状态栏模块
+      App.vue + index.ts + index.html
+    my-script/                 示例：脚本模块
+      index.ts
+  dist/                        ★ 编译输出（Webpack 自动生成）
+    statusbar/index.html
+    my-script/index.js
+```
+
+devkit 使用方法：
+1. `cd <devkit路径> && pnpm install` — 安装依赖（仅首次）
+2. `st-card-tools extract-card <name>` — 提取角色卡到工作区
+3. 在 `workspace/cards/<cardname>/src/` 下创建模块子目录
+4. `pnpm dev` — 开发模式（watch + 热更新，自动发现所有卡的入口）
+5. `pnpm build` — 生产构建
+6. `st-card-tools apply-card <name>` — 将修改写回角色卡
 
 如果尚未安装，请使用 `/st:setup` 进行安装配置。
 </process>

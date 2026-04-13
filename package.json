@@ -1,6 +1,6 @@
 {
   "name": "st-card-skills",
-  "version": "3.4.2",
+  "version": "3.5.0",
   "description": "SillyTavern character card & world book CLI + AI coding assistant skills (Claude Code, Codex, Gemini CLI)",
   "type": "module",
   "main": "dist/lib.js",
@@ -14,6 +14,14 @@
   "files": [
     "commands",
     "templates",
+    "devkit/package.json",
+    "devkit/tsconfig.json",
+    "devkit/webpack.config.ts",
+    "devkit/postcss.config.js",
+    "devkit/index.html",
+    "devkit/types",
+    "devkit/util",
+    "devkit/templates",
     "install.cjs",
     "dist",
     "package.json"

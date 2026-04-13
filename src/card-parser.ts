@@ -231,6 +231,23 @@ export function extractCardToWorkspace(
 
   fs.mkdirSync(outDir, { recursive: true });
 
+  // Clean card data subdirectories (greetings, regex, world) but preserve user
+  // directories like src/ and dist/ so devkit projects are not destroyed.
+  const CARD_DATA_DIRS = ["greetings", "regex", "world"];
+  for (const sub of CARD_DATA_DIRS) {
+    const subDir = path.join(outDir, sub);
+    if (fs.existsSync(subDir)) {
+      fs.rmSync(subDir, { recursive: true, force: true });
+    }
+  }
+  // Also remove stale card.json and avatar.png so they get a fresh write
+  for (const file of ["card.json", "avatar.png"]) {
+    const filePath = path.join(outDir, file);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
   // --- Extract greetings to txt files ---
   const greetingsDir = path.join(outDir, "greetings");
   fs.mkdirSync(greetingsDir, { recursive: true });
