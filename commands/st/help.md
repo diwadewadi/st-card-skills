@@ -61,7 +61,7 @@ Output the following command reference:
 
 ### 工作区流程
 ```
-extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 关联世界书
+extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 酒馆助手脚本 + 关联世界书
   workspace/cards/{name}/
     card.json              角色卡元数据
     avatar.png             头像
@@ -71,6 +71,9 @@ extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 关联世界
     regex/
       000_xxx.json         正则脚本元数据
       000_xxx-replace.txt  替换内容（HTML/CSS 等）
+    scripts/
+      000_xxx.json         酒馆助手脚本元数据
+      000_xxx-content.js   脚本代码内容
     world/
       _meta.json           世界书元数据
       000_xxx.json         条目元数据

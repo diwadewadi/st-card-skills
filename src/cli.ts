@@ -222,6 +222,7 @@ try {
       const parts = [`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`];
       if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
       if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
+      if (result.scriptFiles.length > 0) parts.push(`  scripts: ${result.scriptFiles.join(", ")}`);
       if (result.worldDir) parts.push(`  world: ${result.worldDir}`);
       console.log(parts.join("\n"));
       break;

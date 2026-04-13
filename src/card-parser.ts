@@ -223,7 +223,7 @@ export function extractCardToWorkspace(
   pngPath: string,
   workspaceDir: string,
   worldsDir?: string
-): { outDir: string; cardJsonPath: string; avatarPath: string; greetingFiles: string[]; regexFiles: string[]; worldDir?: string } {
+): { outDir: string; cardJsonPath: string; avatarPath: string; greetingFiles: string[]; regexFiles: string[]; scriptFiles: string[]; worldDir?: string } {
   const card = readCardFromPng(pngPath) as CharacterCardV2 & { world?: string; [k: string]: unknown };
   const cardName = card.data.name || path.basename(pngPath, ".png");
   const sanitized = sanitizeFilename(cardName);
@@ -231,9 +231,9 @@ export function extractCardToWorkspace(
 
   fs.mkdirSync(outDir, { recursive: true });
 
-  // Clean card data subdirectories (greetings, regex, world) but preserve user
+  // Clean card data subdirectories (greetings, regex, world, scripts) but preserve user
   // directories like src/ and dist/ so devkit projects are not destroyed.
-  const CARD_DATA_DIRS = ["greetings", "regex", "world"];
+  const CARD_DATA_DIRS = ["greetings", "regex", "world", "scripts"];
   for (const sub of CARD_DATA_DIRS) {
     const subDir = path.join(outDir, sub);
     if (fs.existsSync(subDir)) {
@@ -294,6 +294,36 @@ export function extractCardToWorkspace(
     }
   }
 
+  // --- Extract tavern_helper scripts to individual files ---
+  const scriptsDir = path.join(outDir, "scripts");
+  fs.mkdirSync(scriptsDir, { recursive: true });
+  const scriptFiles: string[] = [];
+  const tavernHelper = card.data.extensions?.tavern_helper as Record<string, unknown> | undefined;
+  const thScripts = (tavernHelper?.scripts ?? []) as Array<Record<string, unknown>>;
+
+  if (Array.isArray(thScripts)) {
+    for (let i = 0; i < thScripts.length; i++) {
+      const script = thScripts[i];
+      const seq = String(i).padStart(3, "0");
+      const name = sanitizeFilename(String(script.name || "unnamed"));
+      const baseName = `${seq}_${name}`;
+
+      // Separate content from metadata
+      const { content, ...meta } = script;
+      fs.writeFileSync(
+        path.join(scriptsDir, `${baseName}-content.js`),
+        String(content ?? ""),
+        "utf8"
+      );
+      fs.writeFileSync(
+        path.join(scriptsDir, `${baseName}.json`),
+        JSON.stringify(meta, null, 2),
+        "utf8"
+      );
+      scriptFiles.push(`${baseName}.json`);
+    }
+  }
+
   // Remove greetings from card.json (they live in .txt now)
   const cardForJson = JSON.parse(JSON.stringify(card));
   delete cardForJson.data.first_mes;
@@ -311,6 +341,11 @@ export function extractCardToWorkspace(
   // Remove regex_scripts — they're extracted to regex/
   if (cardForJson.data?.extensions?.regex_scripts) {
     delete cardForJson.data.extensions.regex_scripts;
+  }
+
+  // Remove tavern_helper scripts — they're extracted to scripts/
+  if (cardForJson.data?.extensions?.tavern_helper?.scripts) {
+    delete cardForJson.data.extensions.tavern_helper.scripts;
   }
 
   // Write card.json with _source for apply
@@ -335,7 +370,7 @@ export function extractCardToWorkspace(
     }
   }
 
-  return { outDir, cardJsonPath, avatarPath, greetingFiles, regexFiles, worldDir: worldOutDir };
+  return { outDir, cardJsonPath, avatarPath, greetingFiles, regexFiles, scriptFiles, worldDir: worldOutDir };
 }
 
 /**
@@ -392,6 +427,27 @@ export function applyCardFromWorkspace(
       }
       if (!card.data.extensions) card.data.extensions = {};
       card.data.extensions.regex_scripts = scripts;
+    }
+  }
+
+  // --- Read tavern_helper scripts from scripts/ files ---
+  const scriptsDir = path.join(cardDir, "scripts");
+  if (fs.existsSync(scriptsDir)) {
+    const scriptJsonFiles = fs.readdirSync(scriptsDir).filter((f: string) => f.endsWith(".json")).sort();
+    if (scriptJsonFiles.length > 0) {
+      const thScripts: Record<string, unknown>[] = [];
+      for (const file of scriptJsonFiles) {
+        const meta = JSON.parse(fs.readFileSync(path.join(scriptsDir, file), "utf8"));
+        const baseName = file.replace(/\.json$/, "");
+        const contentPath = path.join(scriptsDir, `${baseName}-content.js`);
+        const content = fs.existsSync(contentPath)
+          ? fs.readFileSync(contentPath, "utf8")
+          : "";
+        thScripts.push({ ...meta, content });
+      }
+      if (!card.data.extensions) card.data.extensions = {};
+      if (!card.data.extensions.tavern_helper) card.data.extensions.tavern_helper = {};
+      (card.data.extensions.tavern_helper as Record<string, unknown>).scripts = thScripts;
     }
   }
 

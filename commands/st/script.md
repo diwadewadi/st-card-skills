@@ -197,15 +197,23 @@ export const settings = loadSettings();
 
 15. **集成到角色卡**: 两种方式：
 
-    **方式 A — 内联脚本**（适合简短脚本）：
-    直接将编译后的 JS 代码写入 card.json 的 `data.extensions.tavern_helper.scripts` 数组：
+    **方式 A — 写入 scripts/ 目录**（推荐，extract-card 已提取酒馆助手脚本到此目录）：
+    在工作区 `scripts/` 目录添加或修改脚本文件：
+    - `<序号>_<名称>.json` — 脚本元数据（name, id, enabled, type, button 等）
+    - `<序号>_<名称>-content.js` — 脚本代码内容
+
+    可以直接将编译后的 JS 代码写入 `-content.js`，或用 import 引用远程 URL：
+    ```javascript
+    import 'https://testingcf.jsdelivr.net/gh/用户名/仓库/dist/脚本名/index.js'
+    ```
+
+    新增脚本时需要创建 `.json` 元数据文件：
     ```json
     {
       "name": "脚本名称",
       "id": "生成唯一UUID",
       "enabled": true,
       "type": "script",
-      "content": "编译后的 JS 代码",
       "data": {},
       "info": "",
       "button": { "buttons": [], "enabled": true }
@@ -213,19 +221,16 @@ export const settings = loadSettings();
     ```
 
     **方式 B — 远程加载**（适合复杂脚本，支持自动更新）：
-    将编译后的 JS 上传到 GitHub 等平台，然后在脚本内容中 import：
-    ```json
-    {
-      "name": "脚本名称",
-      "content": "import 'https://testingcf.jsdelivr.net/gh/用户名/仓库/dist/脚本名/index.js'"
-    }
-    ```
+    将编译后的 JS 上传到 GitHub 等平台，然后在 `-content.js` 中 import URL。
 
 16. **写回**: 运行 `st-card-tools apply-card <name>` 写回角色卡。
 
 ## Phase 5: 测试与调试
 
-17. **开发模式**: 运行 `pnpm dev`（在 devkit 目录），Webpack watch + Socket.io 热更新。
+17. **开发流程**:
+    - `pnpm dev`（在 devkit 目录）启动 Webpack watch 模式，修改后自动重新编译
+    - 编译完成后运行 `st-card-tools apply-card <name>` 写回角色卡
+    - 在 SillyTavern 中重新加载角色卡查看效果
 
 18. **调试方法**:
     - 在酒馆页面按 F12 打开控制台查看日志

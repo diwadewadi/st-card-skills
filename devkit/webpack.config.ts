@@ -121,37 +121,6 @@ function discoverEntries(workspace: string): EntryInfo[] {
 }
 
 // ---------------------------------------------------------------------------
-// Socket.io hot-reload server
-// ---------------------------------------------------------------------------
-
-let ioServer: import('socket.io').Server | undefined;
-
-function hotReloadPlugin(compiler: webpack.Compiler) {
-  if (!compiler.options.watch) return;
-
-  if (!ioServer) {
-    import('socket.io').then(({ Server }) => {
-      ioServer = new Server(6621, { cors: { origin: '*' } });
-      console.info('\x1b[36m[devkit]\x1b[0m Hot-reload server started on port 6621');
-      ioServer.on('connect', socket => {
-        console.info(`\x1b[36m[devkit]\x1b[0m TavernHelper connected (${socket.id})`);
-        ioServer!.emit('iframe_updated');
-        socket.on('disconnect', r =>
-          console.info(`\x1b[36m[devkit]\x1b[0m TavernHelper disconnected (${socket.id}): ${r}`),
-        );
-      });
-    });
-  }
-
-  compiler.hooks.done.tap('devkit-hot-reload', () => {
-    if (!ioServer) return;
-    console.info('\n\x1b[36m[devkit]\x1b[0m Build done, pushing update...');
-    const hasHtml = compiler.options.plugins?.some(p => p instanceof HtmlWebpackPlugin);
-    ioServer.emit(hasHtml ? 'message_iframe_updated' : 'script_iframe_updated');
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Globals map — libraries already available in the SillyTavern runtime
 // ---------------------------------------------------------------------------
 
@@ -299,9 +268,6 @@ function buildConfig(entry: EntryInfo): (env: any, argv: any) => webpack.Configu
               }),
             ]
           : [new MiniCssExtractPlugin()]),
-
-        // Hot reload
-        { apply: hotReloadPlugin },
 
         // Vue
         new VueLoaderPlugin(),

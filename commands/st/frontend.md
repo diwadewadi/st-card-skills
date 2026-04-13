@@ -122,23 +122,24 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
     - 确保开场白末尾包含 `<StatusPlaceHolderImpl/>` 占位符
 
     **面板/脚本** → 添加酒馆助手脚本到角色卡：
-    - 在 card.json 的 `data.extensions.tavern_helper.scripts` 中添加一个脚本条目
-    - 脚本内容为 `import '<编译后的 JS 文件 URL>'`
+    - 在工作区 `scripts/` 目录添加脚本（extract-card 已自动提取酒馆助手脚本到此目录）
+    - 每个脚本有一个 `.json`（元数据）和 `-content.js`（脚本内容）
+    - 修改 `-content.js` 中的内容为 `import '<编译后的 JS 文件 URL>'`
     - 如果上传到 GitHub/CDN → 使用 jsDelivr URL
-    - 如果本地开发 → 使用 `pnpm dev` 的热更新模式
+    - 也可以直接将编译后的 JS 代码粘贴到 `-content.js` 中
 
 17. **写回**: 运行 `st-card-tools apply-card <name>` 将修改写回角色卡。
 
-## Phase 5: 测试与调试
+## Phase 5: 开发调试
 
-18. **开发模式**: 运行 `pnpm dev`（在 devkit 目录），启动 Webpack watch + Socket.io 热更新服务（端口 6621）。
-    - 酒馆需安装 tavern_helper 扩展
-    - 修改代码后自动推送更新到酒馆页面
+18. **开发流程**:
+    - `pnpm dev`（在 devkit 目录）启动 Webpack watch 模式，修改后自动重新编译
+    - 编译完成后运行 `st-card-tools apply-card <name>` 写回角色卡
+    - 在 SillyTavern 中重新加载角色卡查看效果
 
 19. **验证清单**:
     - [ ] 界面正确渲染
     - [ ] 变量数据正确绑定（如使用 MVU）
-    - [ ] 流式更新正常工作（如使用 streaming 模式）
     - [ ] 移动端适配
     - [ ] 事件监听器在页面卸载时正确清理
 
