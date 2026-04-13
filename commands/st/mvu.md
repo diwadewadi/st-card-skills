@@ -26,12 +26,13 @@ description: Add or modify MVU variable system and frontend for a character card
 3. **提取角色卡**: 运行 `st-card-tools extract-card <name>` 将角色卡提取到工作区。
 
 4. **全面阅读角色卡内容**: 读取工作区中的所有文件来理解角色卡设定：
-   - `card.json` — 角色卡元数据、描述、系统提示词、已有脚本
+   - `card.json` — 角色卡元数据、描述、系统提示词（注意：extract 后 scripts 已分离到 scripts/ 目录，card.json 中不再包含 tavern_helper.scripts）
    - `greetings/*.txt` — 所有开场白
    - `world/*.json` 和 `world/*-content.txt` — 所有世界书条目
    - `regex/*.json` 和 `regex/*-replace.txt` — 所有正则脚本
+   - `scripts/*.json` 和 `scripts/*-content.js` — 所有 tavern_helper 脚本（.json 是元数据，-content.js 是脚本内容）
 
-5. **判断模式**: 检查角色卡是否已有 MVU 系统（存在 `registerMvuSchema` 脚本、`[mvu_update]` 世界书条目、或 `[initvar]` 条目）。
+5. **判断模式**: 检查角色卡是否已有 MVU 系统（`scripts/` 目录中存在包含 `registerMvuSchema` 的 `-content.js` 文件、`world/` 中有 `[mvu_update]` 条目、或 `[initvar]` 条目）。
    - **如果没有 MVU** → 进入 Phase 2（新增模式），从零开始添加
    - **如果已有 MVU** → 进入 Phase 1.5（修改模式），与用户交互修改
 
@@ -40,7 +41,7 @@ description: Add or modify MVU variable system and frontend for a character card
 仅当角色卡已有 MVU 系统时进入此流程。
 
 6. **展示当前 MVU 配置概览**: 向用户展示角色卡现有的 MVU 组件：
-   - 变量结构（Zod Schema 脚本内容摘要）
+   - 变量结构（`scripts/` 目录中对应的 `-content.js` 文件内容摘要）
    - 世界书条目列表（变量列表、更新规则、输出格式、初始化等）
    - 正则脚本列表
    - 前端状态栏（如果有）
@@ -55,7 +56,7 @@ description: Add or modify MVU variable system and frontend for a character card
    - 其他世界书条目
 
 8. **执行修改**: 根据用户需求，直接编辑工作区中对应的文件：
-   - 修改变量结构 → 编辑 card.json 中的 `tavern_helper.scripts` 对应脚本的 `content` 字段
+   - 修改变量结构 → 编辑 `scripts/` 目录下对应脚本的 `-content.js` 文件（如 `000_变量结构-content.js`）
    - 修改更新规则 → 编辑对应的 `[mvu_update]变量更新规则` 的 -content.txt
    - 修改初始值 → 编辑 `[InitVar]` 的 -content.txt
    - 修改开场白 → 检查 greetings/ 下的 .txt 文件是否包含 `<StatusPlaceHolderImpl/>`，缺少则追加
@@ -79,9 +80,37 @@ description: Add or modify MVU variable system and frontend for a character card
 
 ## Phase 3: 生成变量结构脚本
 
-7. **写入 tavern_helper 脚本到 card.json**: 检查 card.json 中是否已有 `data.extensions.tavern_helper` 结构。如果没有，读取模板目录下的 `card.json` 作为参考，将 `tavern_helper` 结构合并到 card.json 的 `data.extensions` 中。然后在 `data.extensions.tavern_helper.scripts` 数组中添加两个脚本：
+7. **写入 tavern_helper 脚本到 scripts/ 目录**: 脚本以分离文件的形式存放在工作区的 `scripts/` 目录中（extract-card 会将 tavern_helper.scripts 提取到此目录，apply-card 时自动合并回 card.json）。
 
-   **脚本 1 — "变量结构"**: 使用 Zod schema 定义变量结构。模板：
+   首先检查 card.json 中是否已有 `data.extensions.tavern_helper` 结构。如果没有，读取模板目录下的 `card.json` 作为参考，将 `tavern_helper` 结构合并到 card.json 的 `data.extensions` 中。
+
+   然后读取模板目录下 `scripts/` 子目录中的模板文件作为参考（`.json` 是元数据，`-content.js` 是脚本内容），在工作区 `scripts/` 目录中为每个脚本创建两个文件。序号从现有脚本之后递增。
+
+   模板目录 `scripts/` 子目录结构：
+   ```
+   scripts/
+     变量结构.json              # 元数据模板
+     变量结构-content.js        # 脚本内容模板（Zod schema）
+     MVUbeta.json               # 元数据模板（含按钮配置）
+     MVUbeta-content.js         # 脚本内容模板（导入运行时）
+   ```
+
+   **脚本 1 — "变量结构"**: 
+   
+   元数据文件 `{序号}_变量结构.json`：
+   ```json
+   {
+     "button": { "buttons": [], "enabled": true },
+     "data": {},
+     "enabled": true,
+     "id": "生成唯一UUID",
+     "info": "",
+     "name": "变量结构",
+     "type": "script"
+   }
+   ```
+
+   内容文件 `{序号}_变量结构-content.js`：使用 Zod schema 定义变量结构：
    ```javascript
    import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
 
@@ -97,35 +126,34 @@ description: Add or modify MVU variable system and frontend for a character card
    });
    ```
 
-   **脚本 2 — "MVUbeta"**: 导入 MVU 运行时：
-   ```javascript
-   import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js'
-   ```
-
-   两个脚本都需要完整的 script 对象结构：
+   **脚本 2 — "MVUbeta"**: 
+   
+   元数据文件 `{序号}_MVUbeta.json`：
    ```json
    {
-     "button": { "buttons": [], "enabled": true },
-     "content": "脚本内容",
+     "button": {
+       "buttons": [
+         { "name": "重新处理变量", "visible": true },
+         { "name": "重新读取初始变量", "visible": true },
+         { "name": "清除旧楼层变量", "visible": false },
+         { "name": "快照楼层", "visible": false },
+         { "name": "重演楼层", "visible": false },
+         { "name": "重试额外模型解析", "visible": false }
+       ],
+       "enabled": true
+     },
      "data": {},
      "enabled": true,
      "id": "生成唯一UUID",
      "info": "",
-     "name": "脚本名称",
+     "name": "MVUbeta",
      "type": "script"
    }
    ```
 
-   MVUbeta 脚本需要包含以下按钮：
-   ```json
-   "buttons": [
-     { "name": "重新处理变量", "visible": true },
-     { "name": "重新读取初始变量", "visible": true },
-     { "name": "清除旧楼层变量", "visible": false },
-     { "name": "快照楼层", "visible": false },
-     { "name": "重演楼层", "visible": false },
-     { "name": "重试额外模型解析", "visible": false }
-   ]
+   内容文件 `{序号}_MVUbeta-content.js`：导入 MVU 运行时：
+   ```javascript
+   import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js'
    ```
 
 ## Phase 4: 生成世界书条目
