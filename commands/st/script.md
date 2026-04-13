@@ -23,13 +23,7 @@ description: Create TavernHelper scripts for a character card (events, slash com
 
 0. **定位 devkit 目录**: 运行 `node -e "console.log(require.resolve('st-card-skills/package.json').replace(/package\.json$/, 'devkit'))"` 获取 devkit 的绝对路径。如果失败，尝试 `npm root -g` 拼接 `/st-card-skills/devkit`。
 
-1. **阅读 API 参考**: 读取以下类型定义文件，了解所有可用的 API：
-   - `devkit/types/sillytavern.d.ts` — SillyTavern 核心 API
-   - `devkit/types/tavernhelper.d.ts` — 酒馆助手扩展 API
-   - `devkit/types/events.d.ts` — 事件系统
-   - `devkit/types/variables.d.ts` — 变量系统
-   - `devkit/types/mvu.d.ts` — MVU 框架 API
-   - `devkit/types/globals.d.ts` — 全局变量（$、_、z、YAML、toastr）
+1. **阅读 API 参考**: 读取 `devkit/API_REFERENCE.md`，了解所有常用 API（事件系统、变量、聊天消息、MVU 框架、生成等）。如果需要不常用的 API（角色卡管理、世界书、预设、音频等），再按需读取 `devkit/API_REFERENCE_EXTENDED.md`。
 
 2. **阅读脚本模板**: 读取 `devkit/templates/script/index.ts` 了解基本脚本结构。
 

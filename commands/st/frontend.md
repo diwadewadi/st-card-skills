@@ -18,15 +18,21 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
 
 0. **定位 devkit 目录**: 运行 `node -e "console.log(require.resolve('st-card-skills/package.json').replace(/package\.json$/, 'devkit'))"` 获取 devkit 的绝对路径。如果失败，尝试 `npm root -g` 拼接 `/st-card-skills/devkit`。
 
-1. **阅读开发环境**: 读取以下文件，全面了解可用的工具和 API：
-   - `devkit/types/sillytavern.d.ts` — SillyTavern 上下文 API（registerMacro、registerFunctionTool、chat 操作等）
-   - `devkit/types/mvu.d.ts` — MVU 变量框架 API（事件、getMvuData、replaceMvuData）
-   - `devkit/types/events.d.ts` — 事件系统（tavern_events 常量和 eventOn 等函数）
-   - `devkit/types/variables.d.ts` — 变量系统（getVariables、updateVariablesWith）
-   - `devkit/types/tavernhelper.d.ts` — 酒馆助手 API（getChatMessages、waitGlobalInitialized 等）
-   - `devkit/types/globals.d.ts` — 全局变量（$、_、YAML、z、toastr）
-   - `devkit/util/mvu-store.ts` — MVU Pinia Store 工具（defineMvuDataStore）
-   - `devkit/util/streaming.ts` — 流式楼层渲染器（mountStreamingMessages、injectStreamingMessageContext）
+1. **阅读 API 索引**: 读取 `devkit/API_INDEX.md`，快速了解所有可用模块及其对应的类型定义文件路径。**不要**一次性读取所有类型文件，而是根据具体需求按需读取。
+
+   **按需读取类型定义的策略**：
+   - **所有界面类型都需要**：读取 `types/iframe/event.d.ts`（事件系统）+ `types/iframe/exported.sillytavern.d.ts`（SillyTavern 上下文，可只读前 100 行了解常用属性）
+   - **需要变量操作时**：读取 `types/function/variables.d.ts`
+   - **需要消息操作时**：读取 `types/function/chat_message.d.ts`
+   - **需要 AI 生成时**：读取 `types/function/generate.d.ts`
+   - **需要注入提示词时**：读取 `types/function/inject.d.ts`
+   - 其他模块（角色卡、世界书、预设、音频等）在确认需要时再读取对应 `.d.ts` 文件
+
+   根据界面类型，在 Phase 2 确定后按需读取对应的工具文件：
+   - **状态栏**: 读取 `devkit/util/mvu-store.ts`（defineMvuDataStore）+ `devkit/templates/card/statusbar/` 模板 + `types/iframe/exported.mvu.d.ts`（MVU 框架）
+   - **流式楼层**: 读取 `devkit/util/streaming.ts`（mountStreamingMessages）+ `devkit/templates/streaming/` 模板
+   - **面板**: 读取 `devkit/templates/panel/` 模板
+   - **如需 MVU**: 读取 `devkit/templates/card/schema.ts` + `types/iframe/exported.mvu.d.ts`
 
 2. **确认 st-card-tools 可用**: 运行 `st-card-tools list-cards` 确认已配置。如果报错，提示用户先运行 `/st:setup`。
 

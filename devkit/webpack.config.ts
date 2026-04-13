@@ -3,7 +3,7 @@
  *
  * Clean room implementation providing:
  * - Vue 3 SFC + TypeScript + Tailwind CSS + SCSS
- * - Auto-discover entries under workspace/cards/*/src/
+ * - Auto-discover entries under workspace/cards/<name>/src/
  * - Two output modes: HTML (inline everything) or JS (ES module)
  * - Socket.io dev server for hot reload with TavernHelper extension
  * - SillyTavern globals externalized (jQuery, lodash, Vue, Zod, etc.)
@@ -39,6 +39,55 @@ const HTMLInlineCSSWebpackPlugin = require('html-inline-css-webpack-plugin').def
 // Root directory of this devkit
 // ---------------------------------------------------------------------------
 const ROOT = import.meta.dirname;
+
+// ---------------------------------------------------------------------------
+// Exclude node_modules — but allow devkit's own util/ and types/ directories
+// (they live under node_modules/st-card-skills/devkit/ and contain TypeScript
+// that must be compiled by ts-loader)
+// ---------------------------------------------------------------------------
+const excludeNodeModules = (filePath: string) => {
+  if (filePath.includes('node_modules')) {
+    const normalized = filePath.replace(/\\/g, '/');
+    if (
+      normalized.includes('st-card-skills/devkit/util/') ||
+      normalized.includes('st-card-skills/devkit/types/')
+    ) {
+      return false; // don't exclude — these are devkit's own sources
+    }
+    return true; // exclude everything else in node_modules
+  }
+  return false; // not in node_modules — don't exclude
+};
+
+// ---------------------------------------------------------------------------
+// Generate a build-time tsconfig that extends the base and includes the
+// workspace source directory. This avoids hardcoding paths in tsconfig.json
+// and keeps the devkit portable across machines. The generated file is
+// written to ROOT/tsconfig.build.json and used by ts-loader.
+// ---------------------------------------------------------------------------
+
+const TSCONFIG_BUILD = path.join(ROOT, 'tsconfig.build.json');
+
+function ensureBuildTsconfig(workspace: string): string {
+  const workspaceGlob = path.resolve(workspace, 'cards/*/src/**/*').replace(/\\/g, '/');
+  const content = JSON.stringify(
+    {
+      extends: './tsconfig.json',
+      include: ['types', 'util', 'templates', '*.d.ts', workspaceGlob],
+    },
+    null,
+    2,
+  );
+
+  // Only write if content changed — avoids unnecessary ts-loader cache busts
+  let existing = '';
+  try { existing = fs.readFileSync(TSCONFIG_BUILD, 'utf-8'); } catch { /* first run */ }
+  if (existing !== content) {
+    fs.writeFileSync(TSCONFIG_BUILD, content, 'utf-8');
+  }
+
+  return TSCONFIG_BUILD;
+}
 
 // ---------------------------------------------------------------------------
 // Resolve workspace path
@@ -77,7 +126,7 @@ interface EntryInfo {
 }
 
 /**
- * Walk workspace/cards/*/src/ looking for index.{ts,tsx,js,jsx} files.
+ * Walk workspace/cards/<name>/src/ looking for index.{ts,tsx,js,jsx} files.
  * If an index.html sits next to the script, treat as an HTML build
  * that inlines everything into one .html file.
  * Otherwise the build produces a standalone ES-module .js.
@@ -139,7 +188,7 @@ const ST_GLOBALS: Record<string, string> = {
 // Build one webpack config per entry
 // ---------------------------------------------------------------------------
 
-function buildConfig(entry: EntryInfo): (env: any, argv: any) => webpack.Configuration {
+function buildConfig(entry: EntryInfo, tsconfigPath: string): (env: any, argv: any) => webpack.Configuration {
   const parsed = path.parse(entry.script);
   const isHtml = entry.html !== undefined;
 
@@ -188,10 +237,14 @@ function buildConfig(entry: EntryInfo): (env: any, argv: any) => webpack.Configu
               {
                 test: /\.tsx?$/,
                 loader: 'ts-loader',
-                options: { transpileOnly: true, onlyCompileBundledFiles: true },
+                options: {
+                  transpileOnly: true,
+                  onlyCompileBundledFiles: true,
+                  configFile: tsconfigPath,
+                },
                 resourceQuery: /raw/,
                 type: 'asset/source' as const,
-                exclude: /node_modules/,
+                exclude: excludeNodeModules,
               },
               {
                 test: /\.(sa|sc)ss$/,
@@ -220,9 +273,10 @@ function buildConfig(entry: EntryInfo): (env: any, argv: any) => webpack.Configu
                 options: {
                   transpileOnly: true,
                   onlyCompileBundledFiles: true,
+                  configFile: tsconfigPath,
                   compilerOptions: { noUnusedLocals: false, noUnusedParameters: false },
                 },
-                exclude: /node_modules/,
+                exclude: excludeNodeModules,
               },
 
               // HTML
@@ -244,7 +298,7 @@ function buildConfig(entry: EntryInfo): (env: any, argv: any) => webpack.Configu
         plugins: [
           new TsconfigPathsPlugin({
             extensions: ['.ts', '.tsx', '.js', '.jsx'],
-            configFile: path.join(ROOT, 'tsconfig.json'),
+            configFile: tsconfigPath,
           }),
         ],
       },
@@ -373,7 +427,7 @@ export default (env: any, argv: any) => {
 
   if (entries.length === 0) {
     console.warn(
-      `\x1b[33m[devkit]\x1b[0m No entries found in ${path.join(workspace, 'cards/*/src/')}.\n` +
+      `\x1b[33m[devkit]\x1b[0m No entries found under ${path.join(workspace, 'cards')}.\n` +
       `  Workspace: ${workspace}\n` +
       `  Create workspace/cards/<cardname>/src/<module>/index.ts to get started.\n` +
       `  Or specify a different workspace: pnpm dev --env workspace=<path>`,
@@ -388,5 +442,8 @@ export default (env: any, argv: any) => {
     console.info(`\x1b[36m[devkit]\x1b[0m  ${rel} → ${out}/`);
   }
 
-  return entries.map(e => buildConfig(e)(env, argv));
+  // Generate a tsconfig.build.json that includes the workspace source paths
+  const tsconfigPath = ensureBuildTsconfig(workspace);
+
+  return entries.map(e => buildConfig(e, tsconfigPath)(env, argv));
 };

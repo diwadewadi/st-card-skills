@@ -222,7 +222,7 @@ description: Add or modify MVU variable system and frontend for a character card
 
 12. **询问用户**: 是否需要生成前端状态栏界面？
 
-13. **如果需要，生成状态栏正则**: 读取模板目录下 `regex/状态栏.json` 和 `regex/状态栏-replace.txt` 作为参考示例。额外添加一个正则到工作区 `regex/` 目录：
+13. **如果需要，生成状态栏正则**: 读取模板目录下 `regex/状态栏.json` 和 `regex/状态栏-replace.txt` 作为参考示例。如果需要了解 iframe 内可用的 API（事件监听、变量访问、MVU 接口等），读取 `devkit/API_REFERENCE.md`。额外添加一个正则到工作区 `regex/` 目录：
     - 复制 `状态栏.json` 模板作为正则配置
     - 读取 `状态栏-replace.txt` 模板了解前端代码的结构和 API 用法，然后根据实际变量结构生成定制的 -replace.txt
 
