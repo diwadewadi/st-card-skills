@@ -8,7 +8,10 @@
  * Clean room implementation — MIT License
  */
 
-import type { StoreDefinition } from 'pinia';
+import { ref, type Ref } from 'vue';
+import { defineStore, type StoreDefinition } from 'pinia';
+import { useIntervalFn, watchIgnorable } from '@vueuse/core';
+import { z } from 'zod';
 
 /**
  * Create a Pinia store definition that stays in sync with MVU stat_data.

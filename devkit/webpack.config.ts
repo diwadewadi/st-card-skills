@@ -202,6 +202,71 @@ const ST_GLOBALS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
+// IframeBridgePlugin — inject global variable bridge for iframe srcdoc builds
+//
+// Why: When a card panel is rendered inside an iframe (srcdoc), the iframe has
+// its own isolated window. Libraries externalized as globals (jQuery, lodash,
+// Vue, Zod, etc.) and SillyTavern runtime APIs (errorCatched, getVariables,
+// updateVariablesWith) are only available on the parent window. This plugin
+// injects a small <script> into <head> that copies those globals from parent.
+//
+// What's bridged:
+//   - ST_GLOBALS: $, _, showdown, toastr, Vue, VueRouter, YAML, z
+//   - Runtime APIs used by mvu-store: errorCatched, getVariables, updateVariablesWith
+//
+// If your card code uses other SillyTavern runtime APIs inside an iframe
+// (e.g. eventOn, getChatMessages, tavern_events), add them manually in your
+// index.html <head>:
+//   <script>['eventOn','getChatMessages'].forEach(g=>{if(g in parent)window[g]=parent[g]})</script>
+//
+// Full list of bridgeable APIs: see devkit/types/function/index.d.ts
+// (Window.TavernHelper interface).
+//
+// This plugin also escapes </script> and </style> in the final HTML so the
+// build output can be safely embedded in a template literal or srcdoc attribute.
+// ---------------------------------------------------------------------------
+
+class IframeBridgePlugin {
+  apply(compiler: webpack.Compiler) {
+    compiler.hooks.compilation.tap('IframeBridgePlugin', (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'IframeBridgePlugin',
+          // Run after HtmlInlineScriptWebpackPlugin and HTMLInlineCSSWebpackPlugin
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_INLINE + 1,
+        },
+        (assets) => {
+          for (const [name, source] of Object.entries(assets)) {
+            if (!name.endsWith('.html')) continue;
+
+            let html = source.source().toString();
+
+            // 1. Inject iframe global bridge after <head>
+            const bridgeScript =
+              '<script>' +
+              'if(window.parent!==window){' +
+              "['$','_','showdown','toastr','Vue','VueRouter','YAML','z'].forEach(function(g){if(g in window.parent)window[g]=window.parent[g]});" +
+              "['errorCatched','getVariables','updateVariablesWith'].forEach(function(g){if(g in window.parent)window[g]=window.parent[g]})" +
+              '}' +
+              '<\\/script>';
+            html = html.replace(/<head>/i, '<head>' + bridgeScript);
+
+            // 2. Escape </script> and </style> for safe embedding
+            html = html.replace(/<\/script>/gi, '<\\/script>');
+            html = html.replace(/<\/style>/gi, '<\\/style>');
+
+            compilation.updateAsset(
+              name,
+              new webpack.sources.RawSource(html),
+            );
+          }
+        },
+      );
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Build one webpack config per entry
 // ---------------------------------------------------------------------------
 
@@ -337,6 +402,7 @@ function buildConfig(entry: EntryInfo, tsconfigPath: string): (env: any, argv: a
                   return `<style>${style}</style>`;
                 },
               }),
+              new IframeBridgePlugin(),
             ]
           : [new MiniCssExtractPlugin()]),
 
@@ -404,6 +470,7 @@ function buildConfig(entry: EntryInfo, tsconfigPath: string): (env: any, argv: a
           request.startsWith('@/') ||
           request.startsWith('@util/') ||
           request.startsWith('@types/') ||
+          request.startsWith('st-card-skills/') ||
           path.isAbsolute(request) ||
           fs.existsSync(path.join(context, request)) ||
           fs.existsSync(request)

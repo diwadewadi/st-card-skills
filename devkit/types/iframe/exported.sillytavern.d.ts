@@ -630,7 +630,7 @@ declare const SillyTavern: {
     CUSTOM9: number;
   };
   readonly callGenericPopup: (
-    content: JQuery<HTMLElement> | string | Element,
+    content: JQuery<HTMLElement> | string,
     type: number,
     inputValue?: string,
     popupOptions?: SillyTavern.PopupOptions,
