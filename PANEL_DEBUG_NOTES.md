@@ -43,22 +43,17 @@ SillyTavern.callGenericPopup(iframe, ...);
 SillyTavern.callGenericPopup($(iframe), ...);
 ```
 
-### 4. iframe 全局变量注入问题（未解决）
+### 4. iframe 全局变量注入问题 ✅ 已解决（架构变更）
 
 面板以 iframe 形式弹出，Vue 应用需要 `Vue`、`VueRouter`、`z`、`$` 等全局变量。
 
-**已尝试的方案**:
+**根因**: iframe 有独立的 window，全局变量不可用。`iframe.remove()` 后传给 popup 还会导致 contentDocument 丢失。
 
-- **srcdoc + 桥接脚本 `window.parent`**: 桥接脚本通过 `window.parent.Vue` 复制全局变量。但酒馆助手脚本的全局变量（Vue、VueRouter、z 等）可能不在 DOM 的 `window` 对象上，而是在酒馆助手自己的执行环境中。`window.parent` 指向页面的 `window`，不一定有这些变量。结果: `VueRouter is not defined`。
-
-- **contentDocument.write + contentWindow 注入**: 先把 iframe 临时挂到 DOM，通过 `iframe.contentWindow` 直接赋值全局变量，再 `document.write` HTML 结构，最后动态插入 `<script type="module">`。然后 `iframe.remove()` 移出 DOM 交给 popup。结果: 面板空白，可能是 remove 后 iframe 的 document 被销毁或模块脚本未执行。
-
-**待验证的方向**:
-
-- `iframe.remove()` 后再交给 popup 是否会导致 contentDocument 丢失？应该在 popup 内部创建 iframe 而不是先 remove 再传入。
-- 酒馆助手的全局变量到底挂在哪个 window 上？需要在浏览器控制台检查 `window.Vue`、`window.VueRouter` 是否存在。
-- 尘史使徒的状态栏是纯 JS 模式（无 index.html），不走 iframe，直接在酒馆助手环境执行，所以没有这个问题。面板如果也改成纯 JS 模式（不用 iframe），可以避开全局变量注入问题，但需要重新设计弹窗渲染方式。
-- 或者用 Blob URL 创建 iframe src，在 Blob HTML 中内联 Vue/VueRouter 的 CDN import。
+**解决方案**: 面板改为 JS 模式直接挂载（参考尘史使徒的做法），不再使用 iframe：
+- 删除 panel 模板的 `index.html`，webpack 输出 JS 而非 HTML
+- 面板脚本在酒馆主页面运行，通过 `callGenericPopup($('<div>'))` 弹出 Vue app
+- 全局变量天然可用，无需桥接
+- 已更新 `frontend.md`、`conventions.md`、`script.md`、`webpack.config.ts` 中的相关文档
 
 ### 5. store.ts 导入路径 ✅ 已修复（文档）
 

@@ -211,7 +211,7 @@ export const settings = loadSettings();
 ```
 
 15. **生命周期管理要点**:
-    - 始终在 `$(() => { ... })` 中初始化，**禁止** `DOMContentLoaded`（iframe 通过 `$('body').load()` 加载时不触发）
+    - 始终在 `$(() => { ... })` 中初始化，**禁止** `DOMContentLoaded`（前端界面在 iframe 中通过 `$('body').load()` 加载时不触发，脚本统一使用 `$()` 初始化）
     - 始终在 `$(window).on('pagehide', ...)` 中清理，**禁止** `unload` 事件
     - 所有 `eventOn` 返回的 `{ stop }` 都要在卸载时调用
     - 如果使用 `await waitGlobalInitialized('Mvu')`，确保在 `$()` 回调中
@@ -257,7 +257,7 @@ export const settings = loadSettings();
 19. **在脚本中使用 Vue**:
     脚本也可以使用 Vue 来构建设置界面等。注意事项：
     - `createRouter()` 不能写在 `$(() => {})` 中，必须在全局执行
-    - 使用 `createMemoryHistory()` 创建路由（iframe 环境限制）
+    - 使用 `createMemoryHistory()` 创建路由（脚本和面板在 popup 中不适合用 URL history，前端界面在 iframe 中也无 URL 路由）
     - 监听 Vue 响应式数据变化并存入酒馆变量时，先用 `klona()` 去除 proxy 层：
       ```typescript
       const Settings = z.object({ /* ... */ });

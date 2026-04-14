@@ -9,7 +9,7 @@ description: SillyTavern 角色卡前端界面/脚本通用编码规范和最佳
 
 ## 项目基本概念
 
-本项目用于编写酒馆助手 (TavernHelper) 支持的前端界面或脚本，它们在 SillyTavern 中以前台或后台 iframe 形式运行，可以：
+本项目用于编写酒馆助手 (TavernHelper) 支持的前端界面或脚本。前端界面在 SillyTavern 的 iframe 中运行，脚本和面板在酒馆主页面运行。它们可以：
 
 - 为角色卡提供美化的 UI 显示（将代码块纯文本美化为动态交互的 HTML 状态栏）
 - 实现非纯文本的游玩体验（监听事件实现 meta 游戏、播放多媒体、自制界面）
@@ -21,8 +21,9 @@ description: SillyTavern 角色卡前端界面/脚本通用编码规范和最佳
 
 每个前端界面或脚本以 `src/` 文件夹中的一个独立文件夹形式存在：
 
-- **前端界面**: 文件夹中同时有 `index.ts` 和 `index.html` 两个文件
-- **脚本**: 文件夹中仅有 `index.ts` 文件
+- **前端界面**: 文件夹中同时有 `index.ts` 和 `index.html` 两个文件（在 iframe 中运行，如状态栏）
+- **脚本**: 文件夹中仅有 `index.ts` 文件（在酒馆主页面运行）
+- **面板**: 本质是脚本（仅 `index.ts`，无 `index.html`），通过 `callGenericPopup` 弹窗展示 Vue UI，在酒馆主页面运行，全局变量天然可用
 - **流式楼层界面**: 本质是调用了 `mountStreamingMessage` 的脚本，所有脚本编写规则适用
 
 ## 可用第三方库
@@ -170,7 +171,7 @@ $(window).on('pagehide', () => {
   toastr.success('卸载成功');
 });
 
-// ❌ 禁止使用 DOMContentLoaded（iframe load 方式不触发）
+// ❌ 禁止使用 DOMContentLoaded（前端界面在 iframe 中通过 $('body').load() 加载时不触发，脚本和面板也统一使用 $() 初始化）
 // ❌ 禁止使用 unload 事件
 // ❌ 禁止在全局作用域直接执行代码
 ```
@@ -188,7 +189,7 @@ $(() => { errorCatched(init)(); });
 
 ### 10. Vue Router 使用 Memory History
 
-iframe 环境下必须使用 `createMemoryHistory()`：
+必须使用 `createMemoryHistory()`（前端界面在 iframe 中无 URL 路由，面板在 popup 中也不适合用 URL history）：
 
 ```typescript
 const router = createRouter({ history: createMemoryHistory(), routes });

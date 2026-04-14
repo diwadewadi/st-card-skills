@@ -204,7 +204,12 @@ const ST_GLOBALS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // IframeBridgePlugin — inject global variable bridge for iframe srcdoc builds
 //
-// Why: When a card panel is rendered inside an iframe (srcdoc), the iframe has
+// NOTE: This plugin only applies to HTML-mode builds (modules with index.html),
+// such as statusbar / message-floor frontends that run inside iframes.
+// Panels should use JS mode (no index.html) and run directly in the main
+// SillyTavern page, where all globals are natively available.
+//
+// Why: When a card frontend is rendered inside an iframe (srcdoc), the iframe has
 // its own isolated window. Libraries externalized as globals (jQuery, lodash,
 // Vue, Zod, etc.) and SillyTavern runtime APIs (errorCatched, getVariables,
 // updateVariablesWith) are only available on the parent window. This plugin
