@@ -139,9 +139,11 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
     - 可使用 VueUse composables（useIntervalFn、watchIgnorable 等已自动导入）
 
 15. **数据绑定**（如需要）:
-    - **MVU 变量** → 使用 `defineMvuDataStore(Schema, { type: 'message', message_id: -1 })`
+    - **MVU 变量** → 使用 `import { defineMvuDataStore } from '@util/mvu-store'`，然后 `defineMvuDataStore(Schema, { type: 'message', message_id: -1 })`
     - **MVU 事件** → 使用 `eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, callback)`
     - **直接变量** → 使用 `getAllVariables().stat_data`
+
+    > **⚠️ 导入路径**: devkit 工具必须用 `@util/` 前缀导入（如 `@util/mvu-store`、`@util/streaming`、`@util/helpers`），对应 tsconfig paths 映射。**禁止**使用 `st-card-skills/devkit/util/...` 绝对路径 — 卡片源码目录没有 node_modules，无法解析。
 
 16. **调用 SillyTavern API**（按需）:
     - `SillyTavern.chat` — 读取聊天记录
@@ -313,15 +315,22 @@ import './index.scss';
       const iframe = document.createElement('iframe');
       iframe.style.cssText = 'width:100%;height:70vh;border:none;background:#1a1a1e;border-radius:8px;';
       iframe.srcdoc = PANEL_HTML;
-      SillyTavern.callGenericPopup(iframe, SillyTavern.POPUP_TYPE.TEXT, '', {
+      SillyTavern.callGenericPopup($(iframe), SillyTavern.POPUP_TYPE.TEXT, '', {
         wide: true,
         allowVerticalScrolling: true,
         okButton: '关闭',
       });
     }
+
+    // 按钮必须通过 eventOn 手动绑定，JSON 元数据只声明按钮外观
+    $(() => {
+      eventOn(getButtonEvent('面板按钮文字'), openPanel);
+    });
     ```
 
-    `.json` 元数据中配置按钮触发 `openPanel()`：
+    > **⚠️ 注意**: `callGenericPopup` 第一个参数必须用 `$(iframe)` 包装为 jQuery 对象，不能传裸 HTMLElement。按钮回调不会从 JSON 元数据自动绑定，必须在脚本中用 `eventOn(getButtonEvent('按钮名'), callback)` 手动绑定。
+
+    `.json` 元数据中声明按钮（仅控制按钮外观，不绑定回调）：
     ```json
     {
       "type": "script",

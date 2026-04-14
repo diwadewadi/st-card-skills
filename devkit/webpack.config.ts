@@ -242,18 +242,22 @@ class IframeBridgePlugin {
             let html = source.source().toString();
 
             // 1. Inject iframe global bridge after <head>
-            const bridgeScript =
-              '<script>' +
+            // NOTE: Must use function replacement — the bridge script contains
+            // '$' which String.prototype.replace() interprets as a special
+            // pattern ($' = text after match), corrupting the output.
+            const bridgeGlobals = ['$','_','showdown','toastr','Vue','VueRouter','YAML','z'];
+            const bridgeApis = ['errorCatched','getVariables','updateVariablesWith'];
+            const bridgeBody =
               'if(window.parent!==window){' +
-              "['$','_','showdown','toastr','Vue','VueRouter','YAML','z'].forEach(function(g){if(g in window.parent)window[g]=window.parent[g]});" +
-              "['errorCatched','getVariables','updateVariablesWith'].forEach(function(g){if(g in window.parent)window[g]=window.parent[g]})" +
-              '}' +
-              '<\\/script>';
-            html = html.replace(/<head>/i, '<head>' + bridgeScript);
+              JSON.stringify(bridgeGlobals) + '.forEach(function(g){if(g in window.parent)window[g]=window.parent[g]});' +
+              JSON.stringify(bridgeApis) + '.forEach(function(g){if(g in window.parent)window[g]=window.parent[g]})' +
+              '}';
+            html = html.replace(/<head>/i, () => '<head><script>' + bridgeBody + '</script>');
 
-            // 2. Escape </script> and </style> for safe embedding
-            html = html.replace(/<\/script>/gi, '<\\/script>');
-            html = html.replace(/<\/style>/gi, '<\\/style>');
+            // 2. Escape </script> and </style> for safe embedding in
+            //    template literals / srcdoc attributes
+            html = html.replace(/<\/script>/gi, () => '<\\/script>');
+            html = html.replace(/<\/style>/gi, () => '<\\/style>');
 
             compilation.updateAsset(
               name,

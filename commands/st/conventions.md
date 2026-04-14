@@ -80,10 +80,11 @@ description: SillyTavern 角色卡前端界面/脚本通用编码规范和最佳
 
 | 文件 | 用途 |
 |---|---|
-| `util/script.ts` | 脚本工具（`reloadOnChatChange()` 等） |
-| `util/common.ts` | 前端界面/脚本通用工具 |
-| `util/mvu.ts` | MVU 角色卡工具（`defineMvuDataStore()` 等） |
-| `util/streaming.ts` | 流式楼层界面工具（`mountStreamingMessage()` 等） |
+| `@util/mvu-store` | MVU Pinia Store 工具（`defineMvuDataStore()` 等） |
+| `@util/streaming` | 流式楼层界面工具（`mountStreamingMessage()` 等） |
+| `@util/helpers` | 通用工具函数（`parseFlexible()`、`clamp()` 等） |
+
+> **导入路径**: 必须使用 `@util/` 前缀（如 `import { defineMvuDataStore } from '@util/mvu-store'`），对应 tsconfig paths 映射 `@util/*` → `./util/*`。**禁止**使用 `st-card-skills/devkit/util/...` 绝对路径。
 
 ## 特殊导入方式
 
@@ -205,9 +206,4 @@ watchEffect(() => replaceVariables(klona(settings.value), { type: 'script', scri
 
 ### 12. 重载前端界面或脚本
 
-使用 `window.location.reload()` 完全重载。聊天文件变更时重载可用 `util/script.ts` 的工具函数：
-
-```typescript
-import { reloadOnChatChange } from '../../util/script';
-$(() => { reloadOnChatChange(); });
-```
+使用 `window.location.reload()` 完全重载。
