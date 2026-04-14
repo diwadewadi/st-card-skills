@@ -23,7 +23,12 @@ description: Create TavernHelper scripts for a character card (events, slash com
 
 0. **定位 devkit 目录**: 运行 `node -e "console.log(require.resolve('st-card-skills/package.json').replace(/package\.json$/, 'devkit'))"` 获取 devkit 的绝对路径。如果失败，尝试 `npm root -g` 拼接 `/st-card-skills/devkit`。
 
-1. **阅读 API 参考**: 读取 `devkit/API_REFERENCE.md`，了解所有常用 API（事件系统、变量、聊天消息、MVU 框架、生成等）。如果需要不常用的 API（角色卡管理、世界书、预设、音频等），再按需读取 `devkit/API_REFERENCE_EXTENDED.md`。
+1. **阅读 API 索引**: 先读取 `devkit/API_INDEX.md` 了解模块索引，再根据具体需求按需读取 `devkit/types/` 下对应的 `.d.ts` 文件。常见优先级：
+   - 事件系统与全局上下文：`types/iframe/event.d.ts`、`types/iframe/exported.sillytavern.d.ts`
+   - 变量：`types/function/variables.d.ts`
+   - 聊天消息：`types/function/chat_message.d.ts`
+   - 生成：`types/function/generate.d.ts`
+   - MVU：`types/iframe/exported.mvu.d.ts`
 
 2. **阅读脚本模板**: 读取 `devkit/templates/script/index.ts` 了解基本脚本结构。
 
@@ -52,11 +57,11 @@ description: Create TavernHelper scripts for a character card (events, slash com
 
 ## Phase 2: 方案规划（强制）
 
-> **⚠️ 强制要求**: 在编写或修改任何代码之前，必须先进入 Plan 模式，设计完整的实现方案并获得用户批准。禁止跳过此步骤直接动手写代码。
+> **⚠️ 强制要求**: 在编写或修改任何代码之前，必须先明确列出实现方案并获得用户批准。禁止跳过此步骤直接动手写代码。
 >
 > **⚠️ 详尽原则**: 方案必须足够详尽，使得在一个全新的上下文窗口中仅凭此方案即可完整执行实现，无需额外询问或猜测。所有决策、路径、代码结构、关键实现细节都必须在方案中明确写出。
 
-9. **进入 Plan 模式**: 调用 `EnterPlanMode` 工具，基于 Phase 1 收集到的需求，制定详尽的实现计划。计划应包含：
+9. **提交实现计划**: 基于 Phase 1 收集到的需求，制定详尽的实现计划并展示给用户。计划应包含：
 
     **项目结构**:
     - 需要创建/修改的完整文件列表，标注每个文件的绝对路径和职责
@@ -82,7 +87,7 @@ description: Create TavernHelper scripts for a character card (events, slash com
     - 构建命令与输出路径
     - 写回角色卡的具体步骤
 
-10. **等待用户批准**: 通过 `ExitPlanMode` 提交方案，等待用户审阅和批准后，方可进入下一阶段。如用户提出修改意见，需更新方案并重新提交。
+10. **等待用户批准**: 等待用户审阅和批准后，方可进入下一阶段。如用户提出修改意见，需更新方案并重新提交。
 
 ## Phase 3: 脚本创建
 

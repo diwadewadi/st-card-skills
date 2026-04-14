@@ -8,15 +8,17 @@ description: Learn st-card-tools capabilities, then ask the user what they want 
 </objective>
 
 <process>
-1. **了解工具能力**: 运行 `st-card-tools --help` 获取完整命令列表和用法。
+1. **先做健康检查**: 运行 `st-card-tools doctor`，确认 st-root、workspace、浏览器和技能安装状态。
 
-2. **检查配置状态**: 运行 `st-card-tools list-cards` 确认工具已配置可用。如果报错，提示用户先运行 `/st:setup` 完成配置。
+2. **了解工具能力**: 运行 `st-card-tools --help` 获取完整命令列表和用法。
 
-3. **浏览当前资源**: 运行以下命令了解用户有哪些素材：
+3. **检查配置状态**: 运行 `st-card-tools list-cards` 确认工具已配置可用。如果报错，提示用户先运行 `/st:setup` 完成配置。
+
+4. **浏览当前资源**: 运行以下命令了解用户有哪些素材：
    - `st-card-tools list-cards` — 查看所有角色卡
    - `st-card-tools list-worlds` — 查看所有世界书
 
-4. **向用户展示能力并询问需求**: 用简洁的方式告诉用户你可以帮他做什么，然后问他想做什么。例如：
+5. **向用户展示能力并询问需求**: 用简洁的方式告诉用户你可以帮他做什么，然后问他想做什么。例如：
 
    角色卡相关：
    - 查看/读取角色卡内容
@@ -30,5 +32,5 @@ description: Learn st-card-tools capabilities, then ask the user what they want 
    - 修改世界书条目内容
    - 编辑完成后写回 JSON
 
-5. **执行用户请求**: 根据用户的回答，调用对应的 st-card-tools 命令完成操作。如果用户的需求涉及多个步骤，先说明流程再逐步执行。
+6. **执行用户请求**: 根据用户的回答，调用对应的 st-card-tools 命令完成操作。如果用户的需求涉及多个步骤，先说明流程再逐步执行。
 </process>

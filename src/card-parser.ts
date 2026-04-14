@@ -73,6 +73,23 @@ interface TextChunkData {
   text: string;
 }
 
+interface CardWorkspaceManifest {
+  schema: "st-card-tools/card-workspace-manifest@1";
+  generatedAt: string;
+  cardName: string;
+  sourcePng: string;
+  files: {
+    cardJson: string;
+    avatar: string;
+    greetings: string[];
+    regex: Array<{ metaFile: string; replaceFile: string }>;
+    scripts: Array<{ metaFile: string; contentFile: string }>;
+    worldDir?: string;
+    worldManifest?: string;
+  };
+  applyCommand: string;
+}
+
 export interface CharacterCardV2 {
   spec: string;
   spec_version: string;
@@ -223,11 +240,21 @@ export function extractCardToWorkspace(
   pngPath: string,
   workspaceDir: string,
   worldsDir?: string
-): { outDir: string; cardJsonPath: string; avatarPath: string; greetingFiles: string[]; regexFiles: string[]; scriptFiles: string[]; worldDir?: string } {
+): {
+  outDir: string;
+  cardJsonPath: string;
+  avatarPath: string;
+  greetingFiles: string[];
+  regexFiles: string[];
+  scriptFiles: string[];
+  worldDir?: string;
+  manifestPath: string;
+} {
   const card = readCardFromPng(pngPath) as CharacterCardV2 & { world?: string; [k: string]: unknown };
   const cardName = card.data.name || path.basename(pngPath, ".png");
   const sanitized = sanitizeFilename(cardName);
   const outDir = path.join(workspaceDir, "cards", sanitized);
+  const generatedAt = new Date().toISOString();
 
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -359,18 +386,56 @@ export function extractCardToWorkspace(
 
   // --- Extract linked world book ---
   let worldOutDir: string | undefined;
+  let worldManifestPath: string | undefined;
   const worldName: string | undefined =
     (card.data?.extensions?.world as string) || (card.world as string) || undefined;
   if (worldName && worldsDir) {
     const worldPath = path.join(worldsDir, worldName + ".json");
     if (fs.existsSync(worldPath)) {
-      const worldTargetDir = path.join(outDir, "world");
       const result = extractWorldToWorkspace(worldPath, outDir, "world");
       worldOutDir = result.outDir;
+      worldManifestPath = result.manifestPath;
     }
   }
 
-  return { outDir, cardJsonPath, avatarPath, greetingFiles, regexFiles, scriptFiles, worldDir: worldOutDir };
+  const regexPairs = regexFiles.map((metaFile) => ({
+    metaFile,
+    replaceFile: metaFile.replace(/\.json$/, "-replace.txt"),
+  }));
+  const scriptPairs = scriptFiles.map((metaFile) => ({
+    metaFile,
+    contentFile: metaFile.replace(/\.json$/, "-content.js"),
+  }));
+
+  const manifest: CardWorkspaceManifest = {
+    schema: "st-card-tools/card-workspace-manifest@1",
+    generatedAt,
+    cardName,
+    sourcePng: pngPath,
+    files: {
+      cardJson: path.basename(cardJsonPath),
+      avatar: path.basename(avatarPath),
+      greetings: greetingFiles,
+      regex: regexPairs,
+      scripts: scriptPairs,
+      worldDir: worldOutDir ? toWorkspaceRelativePath(outDir, worldOutDir) : undefined,
+      worldManifest: worldManifestPath ? toWorkspaceRelativePath(outDir, worldManifestPath) : undefined,
+    },
+    applyCommand: `st-card-tools apply-card "${sanitized}"`,
+  };
+  const manifestPath = path.join(outDir, "_manifest.json");
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+
+  return {
+    outDir,
+    cardJsonPath,
+    avatarPath,
+    greetingFiles,
+    regexFiles,
+    scriptFiles,
+    worldDir: worldOutDir,
+    manifestPath,
+  };
 }
 
 /**
@@ -485,4 +550,8 @@ function sanitizeFilename(name: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+function toWorkspaceRelativePath(baseDir: string, targetPath: string): string {
+  return path.relative(baseDir, targetPath).split(path.sep).join("/");
 }

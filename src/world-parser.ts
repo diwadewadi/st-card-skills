@@ -52,6 +52,33 @@ export interface WorldBook {
   [extra: string]: unknown;
 }
 
+interface WorldWorkspaceMeta {
+  _schema: "st-card-tools/world-workspace-meta@1";
+  _source: string;
+  _generatedAt: string;
+  _world: Record<string, unknown>;
+}
+
+interface WorldWorkspaceManifestEntry {
+  id: string;
+  seq: string;
+  comment: string;
+  metaFile: string;
+  contentFile: string;
+}
+
+interface WorldWorkspaceManifest {
+  schema: "st-card-tools/world-workspace-manifest@1";
+  generatedAt: string;
+  worldName: string;
+  source: string;
+  files: {
+    meta: string;
+    entries: WorldWorkspaceManifestEntry[];
+  };
+  applyCommand: string;
+}
+
 /**
  * List world book JSON files in a directory.
  */
@@ -255,7 +282,7 @@ export function extractWorldToWorkspace(
   worldPath: string,
   workspaceDir: string,
   subDir?: string
-): { outDir: string; entryFiles: string[] } {
+): { outDir: string; entryFiles: string[]; manifestPath: string } {
   const world = readWorld(worldPath);
   const bookName = path.basename(worldPath, ".json");
   const sanitized = sanitizeFilename(bookName);
@@ -265,16 +292,25 @@ export function extractWorldToWorkspace(
 
   fs.mkdirSync(outDir, { recursive: true });
 
-  // Write _meta.json (source path only)
-  const { entries } = world;
+  const { entries, ...worldTopLevel } = world;
+  const generatedAt = new Date().toISOString();
+  const meta: WorldWorkspaceMeta = {
+    _schema: "st-card-tools/world-workspace-meta@1",
+    _source: worldPath,
+    _generatedAt: generatedAt,
+    _world: worldTopLevel,
+  };
+
+  // Write _meta.json with source path and top-level world metadata.
   fs.writeFileSync(
     path.join(outDir, "_meta.json"),
-    JSON.stringify({ _source: worldPath }, null, 2),
+    JSON.stringify(meta, null, 2),
     "utf8"
   );
 
   // Write each entry as a separate file
   const entryFiles: string[] = [];
+  const manifestEntries: WorldWorkspaceManifestEntry[] = [];
   const sortedIds = Object.keys(entries).sort(
     (a, b) => Number(a) - Number(b)
   );
@@ -302,9 +338,30 @@ export function extractWorldToWorkspace(
       "utf8"
     );
     entryFiles.push(`${baseName}.json`);
+    manifestEntries.push({
+      id,
+      seq,
+      comment: entry.comment,
+      metaFile: `${baseName}.json`,
+      contentFile: `${baseName}-content.txt`,
+    });
   }
 
-  return { outDir, entryFiles };
+  const manifest: WorldWorkspaceManifest = {
+    schema: "st-card-tools/world-workspace-manifest@1",
+    generatedAt,
+    worldName: bookName,
+    source: worldPath,
+    files: {
+      meta: "_meta.json",
+      entries: manifestEntries,
+    },
+    applyCommand: `st-card-tools apply-world "${sanitized}"`,
+  };
+  const manifestPath = path.join(outDir, "_manifest.json");
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+
+  return { outDir, entryFiles, manifestPath };
 }
 
 /**
@@ -319,7 +376,10 @@ export function applyWorldFromWorkspace(
     throw new Error(`_meta.json not found in ${worldDir}`);
   }
 
-  const metaRaw = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+  const metaRaw = JSON.parse(fs.readFileSync(metaPath, "utf8")) as Partial<WorldWorkspaceMeta> & {
+    _source?: string;
+    _world?: Record<string, unknown>;
+  };
   const target = outputPath || metaRaw._source;
   if (!target) {
     throw new Error("No output path and no _source in _meta.json");
@@ -349,7 +409,20 @@ export function applyWorldFromWorkspace(
     entries[id] = entry as WorldEntry;
   }
 
-  const world: WorldBook = { entries };
+  const existingWorld = fs.existsSync(target) ? readWorld(target) : { entries: {} };
+  const { entries: _existingEntries, ...existingTopLevel } = existingWorld;
+  const preservedTopLevel = isPlainObject(metaRaw._world)
+    ? metaRaw._world
+    : existingTopLevel;
+
+  const world: WorldBook = {
+    ...preservedTopLevel,
+    entries,
+  };
   writeWorld(target, world);
   return target;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

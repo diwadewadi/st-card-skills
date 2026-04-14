@@ -17,6 +17,9 @@ This gives you two commands:
 ## Quick Start
 
 ```bash
+# Check your environment
+st-card-tools doctor
+
 # Install skill files (interactive runtime selector)
 st-card-skills
 
@@ -33,6 +36,7 @@ $st-setup
 ## CLI Tool (st-card-tools)
 
 ```bash
+st-card-tools doctor             # Check st-root, workspace, browser, and installed skills
 st-card-tools list-cards          # List character cards
 st-card-tools read-card <name>    # Read card JSON
 st-card-tools extract-card <name> # Extract card + greetings + regex scripts + world book to workspace
@@ -45,6 +49,10 @@ st-card-tools apply-world <name>  # Apply workspace back to JSON
 ```
 
 `verify-live` is intended for frontend debugging. It launches a real browser against your running SillyTavern instance, then mirrors browser `console`, page errors, and failed requests back into the terminal and a workspace log file.
+
+`doctor` checks your effective `st-root`, workspace, verify-live browser channel, and whether st-card-skills are installed for Claude Code, Codex, and Gemini CLI.
+
+`extract-card` and `extract-world` now write `_manifest.json` files so both humans and AI agents can see the extracted workspace structure and companion files at a glance.
 
 ## Skills Installer (st-card-skills)
 
@@ -79,6 +87,9 @@ Codex skill names use hyphens, for example:
 | `/st:setup` | Configure SillyTavern path and workspace |
 | `/st:help` | Show all available commands and usage |
 | `/st:quick_start` | Learn tools & ask what user wants to do |
+| `/st:conventions` | Reference coding conventions and best practices for SillyTavern card development |
+| `/st:frontend` | Create Vue 3 interactive frontends for a character card |
+| `/st:script` | Create TavernHelper scripts for a character card |
 | `/st:mvu` | Add or modify MVU variable system and frontend |
 | `/st:image` | Add image insertion system to a character card |
 
@@ -86,6 +97,9 @@ Codex uses the same skills with these invocation names:
 - `st-setup`
 - `st-help`
 - `st-quick_start`
+- `st-conventions`
+- `st-frontend`
+- `st-script`
 - `st-mvu`
 - `st-image`
 

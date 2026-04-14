@@ -12,6 +12,20 @@ Output the following command reference:
 
 ## st-card-tools - SillyTavern 角色卡 & 世界书 CLI 工具
 
+### 先做环境检查
+| 命令 | 说明 |
+|------|------|
+| `st-card-tools doctor` | 检查 st-root、workspace、verify-live 浏览器，以及 Claude/Codex/Gemini 的技能安装状态 |
+| `st-card-tools init-config --st-root "<path>" --workspace "<path>"` | 保存默认的 SillyTavern 路径和工作区路径 |
+| `st-card-tools init` | 初始化工作区目录 |
+
+### 助手入口技能
+| 技能 | 说明 |
+|------|------|
+| `/st:setup` | 配置 SillyTavern 路径和工作区 |
+| `/st:help` | 显示完整命令参考 |
+| `/st:quick_start` | 先检查环境和资源，再引导用户选择要做的事 |
+
 ### 角色卡命令
 | 命令 | 说明 |
 |------|------|
@@ -36,6 +50,7 @@ Output the following command reference:
 | 技能 | 说明 |
 |------|------|
 | `/st:frontend` | 为角色卡创建 Vue 3 交互式前端（状态面板、物品栏、战斗 UI、流式楼层界面等） |
+| `/st:conventions` | 查看角色卡前端/脚本开发的通用编码规范和最佳实践 |
 
 ### 酒馆脚本开发（devkit）
 | 技能 | 说明 |
@@ -59,10 +74,18 @@ Output the following command reference:
 | `--dir <path>` | 覆盖 list 命令的目录 |
 | `--output <path>` | 覆盖 apply 命令的输出路径 |
 
-### 工作区流程
+### 最常见 5 个任务
+1. `st-card-tools doctor` — 先确认环境和技能安装状态
+2. `st-card-tools init-config --st-root "<path>" --workspace "./workspace"` — 保存默认路径
+3. `st-card-tools extract-card <name>` → 编辑工作区文件 → `st-card-tools apply-card <name>`
+4. `st-card-tools read-card-field <name> data.description` / `st-card-tools write-card-field <name> data.description "..."` — 快速读写单个字段
+5. `st-card-tools verify-live <name> --module statusbar --browser msedge` — 用真实浏览器调试前端模块
+
+### 工作区结构
 ```
 extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 酒馆助手脚本 + 关联世界书
   workspace/cards/{name}/
+    _manifest.json          工作区清单（给人和 AI 快速理解结构）
     card.json              角色卡元数据
     avatar.png             头像
     greetings/
@@ -75,7 +98,8 @@ extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 酒馆助手
       000_xxx.json         酒馆助手脚本元数据
       000_xxx-content.js   脚本代码内容
     world/
-      _meta.json           世界书元数据
+      _meta.json           世界书来源和顶层元数据
+      _manifest.json       世界书工作区清单
       000_xxx.json         条目元数据
       000_xxx-content.txt  条目内容（纯文本）
 

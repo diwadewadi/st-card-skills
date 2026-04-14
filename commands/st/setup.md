@@ -18,12 +18,15 @@ Follow these steps in order:
 
 4. **Save config**: Run `st-card-tools init-config --st-root "<user's ST path>" --workspace "<user's workspace path>"` to save both paths to `~/.st-card-tools.json`. This way the user never needs to pass `--st-root` or `--workspace` again.
 
-5. **Test connection**: Run `st-card-tools list-cards` to verify everything works (no flags needed since config is saved).
+5. **Run doctor**: Run `st-card-tools doctor` to verify the effective st-root, workspace, browser, and skills install status.
 
-6. **Summary**: Tell the user the setup is complete. Config is saved to `~/.st-card-tools.json` — no need to pass `--st-root` or `--workspace` on every command.
+6. **Test connection**: Run `st-card-tools list-cards` to verify everything works (no flags needed since config is saved).
+
+7. **Summary**: Tell the user the setup is complete. Config is saved to `~/.st-card-tools.json` — no need to pass `--st-root` or `--workspace` on every command.
 
 Show available commands:
 ```
+st-card-tools doctor             Check environment and installed skills
 st-card-tools list-cards          List character cards
 st-card-tools read-card <name>    Read card JSON
 st-card-tools extract-card <name> Extract card + greetings + world book to workspace

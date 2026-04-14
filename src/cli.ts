@@ -2,6 +2,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
+import { spawnSync } from "node:child_process";
 
 import {
   readCardFromPng,
@@ -73,6 +74,7 @@ const stUrl = getFlag("st-url") || process.env.ST_URL || config["st-url"] || "ht
 let cardsDir = getFlag("cards") || process.env.ST_CARDS_DIR || "";
 let worldsDir = getFlag("worlds") || process.env.ST_WORLDS_DIR || "";
 let workspaceDir = path.resolve(getFlag("workspace") || config.workspace || path.join(process.cwd(), "workspace"));
+const browserChannel = getFlag("browser") || process.env.ST_BROWSER || "msedge";
 
 if (stRoot && !cardsDir) {
   cardsDir = path.join(stRoot, "data", "default-user", "characters");
@@ -136,6 +138,195 @@ for (let i = 0; i < argv.length; i++) {
 const command = positional[0];
 const args = positional.slice(1);
 
+type CheckStatus = "ok" | "warn" | "error";
+
+interface DoctorCheck {
+  label: string;
+  status: CheckStatus;
+  detail: string;
+}
+
+interface RuntimeStatus {
+  label: string;
+  targetDir: string;
+  installedItems: string[];
+}
+
+function existsDirectory(targetPath: string): boolean {
+  try {
+    return fs.statSync(targetPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function findExecutable(candidates: string[]): string | undefined {
+  const locator = process.platform === "win32" ? "where.exe" : "which";
+
+  for (const candidate of candidates) {
+    const result = spawnSync(locator, [candidate], { encoding: "utf8" });
+    if (result.status === 0) {
+      const firstMatch = result.stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find(Boolean);
+      if (firstMatch) {
+        return firstMatch;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function browserCandidates(channel: string): string[] {
+  const candidates = new Set<string>();
+
+  const add = (...names: string[]) => {
+    for (const name of names) candidates.add(name);
+  };
+
+  switch (channel) {
+    case "msedge":
+      add("msedge", "msedge.exe", "microsoft-edge", "microsoft-edge-stable");
+      break;
+    case "chrome":
+      add("chrome", "chrome.exe", "google-chrome", "google-chrome-stable");
+      break;
+    case "chromium":
+      add("chromium", "chromium.exe", "chromium-browser");
+      break;
+    case "firefox":
+      add("firefox", "firefox.exe");
+      break;
+    default:
+      add(channel, `${channel}.exe`);
+      break;
+  }
+
+  return [...candidates];
+}
+
+function getRuntimeStatuses(): RuntimeStatus[] {
+  const runtimes = [
+    {
+      label: "Claude Code",
+      targetDir: path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude"), "commands", "st"),
+      listItems: (dir: string) => fs.readdirSync(dir).filter((name) => name.endsWith(".md")).sort(),
+    },
+    {
+      label: "Codex",
+      targetDir: path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "skills"),
+      listItems: (dir: string) =>
+        fs.readdirSync(dir, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && entry.name.startsWith("st-"))
+          .map((entry) => entry.name)
+          .sort(),
+    },
+    {
+      label: "Gemini CLI",
+      targetDir: path.join(process.env.GEMINI_CONFIG_DIR || path.join(os.homedir(), ".gemini"), "commands", "st"),
+      listItems: (dir: string) => fs.readdirSync(dir).filter((name) => name.endsWith(".md")).sort(),
+    },
+  ];
+
+  return runtimes.map((runtime) => ({
+    label: runtime.label,
+    targetDir: runtime.targetDir,
+    installedItems: existsDirectory(runtime.targetDir) ? runtime.listItems(runtime.targetDir) : [],
+  }));
+}
+
+function runDoctor(): number {
+  const checks: DoctorCheck[] = [];
+  const configPath = getConfigPath();
+
+  checks.push({
+    label: "Config file",
+    status: fs.existsSync(configPath) ? "ok" : "warn",
+    detail: fs.existsSync(configPath)
+      ? `Found at ${configPath}`
+      : `Not found. Run 'st-card-tools init-config --st-root "<path>" --workspace "<path>"' to save defaults.`,
+  });
+
+  if (!stRoot) {
+    checks.push({
+      label: "SillyTavern root",
+      status: "warn",
+      detail: "Not configured. Set --st-root, ST_ROOT, or save it with init-config.",
+    });
+  } else if (!existsDirectory(stRoot)) {
+    checks.push({
+      label: "SillyTavern root",
+      status: "error",
+      detail: `Configured path does not exist: ${stRoot}`,
+    });
+  } else {
+    const charactersOk = existsDirectory(cardsDir);
+    const worldsOk = existsDirectory(worldsDir);
+    const status: CheckStatus = charactersOk && worldsOk ? "ok" : "error";
+    const detail = [
+      `Root: ${stRoot}`,
+      `characters: ${charactersOk ? cardsDir : `missing (${cardsDir || "not resolved"})`}`,
+      `worlds: ${worldsOk ? worldsDir : `missing (${worldsDir || "not resolved"})`}`,
+    ].join(" | ");
+    checks.push({ label: "SillyTavern root", status, detail });
+  }
+
+  if (existsDirectory(workspaceDir)) {
+    checks.push({
+      label: "Workspace",
+      status: "ok",
+      detail: `Ready at ${workspaceDir}`,
+    });
+  } else if (existsDirectory(path.dirname(workspaceDir))) {
+    checks.push({
+      label: "Workspace",
+      status: "warn",
+      detail: `Directory does not exist yet: ${workspaceDir}. It will be created by 'st-card-tools init' or the first extract.`,
+    });
+  } else {
+    checks.push({
+      label: "Workspace",
+      status: "error",
+      detail: `Parent directory does not exist: ${path.dirname(workspaceDir)}`,
+    });
+  }
+
+  const browserPath = findExecutable(browserCandidates(browserChannel));
+  checks.push({
+    label: "Browser",
+    status: browserPath ? "ok" : "warn",
+    detail: browserPath
+      ? `verify-live browser channel "${browserChannel}" looks available at ${browserPath}`
+      : `Could not find an executable for browser channel "${browserChannel}" on PATH. Try --browser chrome or install Microsoft Edge/Chrome locally.`,
+  });
+
+  const runtimeStatuses = getRuntimeStatuses();
+  for (const runtime of runtimeStatuses) {
+    checks.push({
+      label: `Skills (${runtime.label})`,
+      status: runtime.installedItems.length > 0 ? "ok" : "warn",
+      detail: runtime.installedItems.length > 0
+        ? `${runtime.installedItems.length} skill item(s) installed in ${runtime.targetDir}`
+        : `No st-card-skills files found in ${runtime.targetDir}`,
+    });
+  }
+
+  console.log("st-card-tools doctor\n");
+  for (const check of checks) {
+    const icon = check.status === "ok" ? "OK" : check.status === "warn" ? "WARN" : "ERROR";
+    console.log(`[${icon}] ${check.label}: ${check.detail}`);
+  }
+
+  const hasError = checks.some((check) => check.status === "error");
+  if (!hasError) {
+    console.log("\nDoctor completed without blocking errors.");
+  }
+
+  return hasError ? 1 : 0;
+}
+
 // ---- Commands ----
 
 function printHelp() {
@@ -144,6 +335,7 @@ function printHelp() {
 Usage: st-card-tools <command> [args] [options]
 
 Commands:
+  doctor                          Check st-root, workspace, browser, and installed skills
   init-config                     Save st-root, st-url, and workspace to ~/.st-card-tools.json
   init                            Initialize workspace directory
   list-cards                      List character card PNG files
@@ -171,7 +363,25 @@ Options:
   --browser <name>    Browser channel for verify-live (default: msedge)
   --user-data-dir <path>  Persistent browser profile for verify-live
   --timeout <ms>      Navigation timeout for verify-live (default: 15000)
-  --help              Show this help`);
+  --help              Show this help
+
+Common tasks:
+  1. First-time environment check
+     st-card-tools doctor
+
+  2. Save your SillyTavern path and workspace once
+     st-card-tools init-config --st-root "/path/to/SillyTavern" --workspace "./workspace"
+
+  3. Extract a card, edit files in workspace, then write it back
+     st-card-tools extract-card Alice
+     st-card-tools apply-card Alice
+
+  4. Read or update one field without extracting the whole card
+     st-card-tools read-card-field Alice data.description
+     st-card-tools write-card-field Alice data.description "New description"
+
+  5. Debug a frontend module in a real browser
+     st-card-tools verify-live Alice --module statusbar --browser msedge`);
 }
 
 async function main() {
@@ -181,6 +391,11 @@ async function main() {
       case "--help":
       case "help": {
         printHelp();
+        break;
+      }
+
+      case "doctor": {
+        process.exitCode = runDoctor();
         break;
       }
 
@@ -242,7 +457,9 @@ async function main() {
       case "extract-card": {
         if (!args[0]) { console.error("Usage: st-card-tools extract-card <name>"); process.exit(1); }
         const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir, worldsDir || undefined);
-        const parts = [`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`];
+        const parts = [
+          `Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}\n  manifest: ${result.manifestPath}`,
+        ];
         if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
         if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
         if (result.scriptFiles.length > 0) parts.push(`  scripts: ${result.scriptFiles.join(", ")}`);
@@ -274,7 +491,7 @@ async function main() {
           cardName: args[0],
           moduleName: getFlag("module"),
           stUrl,
-          browserChannel: getFlag("browser") || process.env.ST_BROWSER || "msedge",
+          browserChannel,
           userDataDir,
           timeoutMs: Number(getFlag("timeout") || 15000),
           logDir: path.join(cardDir, "logs", "verify-live"),
@@ -308,7 +525,10 @@ async function main() {
       case "extract-world": {
         if (!args[0]) { console.error("Usage: st-card-tools extract-world <name>"); process.exit(1); }
         const result = extractWorldToWorkspace(resolveWorldPath(args[0]), workspaceDir);
-        console.log(`World extracted:\n  Directory: ${result.outDir}\n  Files: _meta.json, ${result.entryFiles.join(", ")}`);
+        const fileList = ["_meta.json", "_manifest.json", ...result.entryFiles].join(", ");
+        console.log(
+          `World extracted:\n  Directory: ${result.outDir}\n  Files: ${fileList}`,
+        );
         break;
       }
 
