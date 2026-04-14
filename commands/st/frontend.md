@@ -282,23 +282,68 @@ import './index.scss';
 
 ## Phase 5: 构建与集成
 
-17. **构建**: 在 devkit 目录运行 `pnpm build`（或 `pnpm dev` 进入 watch 模式）。
+17. **构建**（强制）: 在 devkit 目录运行 `pnpm build`（或 `pnpm dev` 进入 watch 模式）。**禁止**跳过构建步骤直接手写编译产物。
     - Webpack 会自动发现 `workspace/cards/*/src/` 下的所有入口
-    - 编译输出到对应卡片目录的 `dist/`（如 `workspace/cards/<cardname>/dist/statusbar/index.html`）
+    - 有 `index.html` 的模块 → 输出 `dist/<模块>/index.html`（完整 HTML，内联所有 JS/CSS + IframeBridgePlugin 桥接脚本）
+    - 无 `index.html` 的模块 → 输出 `dist/<模块>/index.js`（ES module）
     - 如果 workspace 路径非默认，使用 `pnpm dev --env workspace=<path>` 指定
+    - **构建完成后**，检查 `dist/` 目录确认产物存在且完整，再进入集成步骤
 
-18. **集成到角色卡**: 根据界面类型选择集成方式：
+18. **集成到角色卡**: 根据界面类型选择集成方式。注意不同界面类型的构建产物不同：
+    - **有 `index.html` 的模块**（面板、状态栏）→ 构建产物是 `dist/<模块>/index.html`（完整 HTML 文件，已内联所有 JS/CSS/桥接脚本）
+    - **无 `index.html` 的模块**（流式楼层、纯脚本）→ 构建产物是 `dist/<模块>/index.js`（ES module JS 文件）
 
     **状态栏** → 添加一个正则脚本到角色卡：
     - 在工作区 `regex/` 目录添加一个正则，匹配 `<StatusPlaceHolderImpl/>`，替换为加载编译后 HTML 的代码
     - 确保开场白末尾包含 `<StatusPlaceHolderImpl/>` 占位符
 
-    **面板/脚本** → 添加酒馆助手脚本到角色卡：
+    **面板** → 添加酒馆助手脚本 + 按钮，点击时弹出 iframe 弹窗：
+
+    面板的构建产物是 **HTML 文件**（`dist/<模块>/index.html`），不是 JS。集成步骤：
+
+    1. **先构建**：必须先运行 `pnpm build` 生成 `dist/<模块>/index.html`。**禁止**手动拼接 HTML 或手动编译 Vue 代码 — 构建产物由 webpack 生成，包含完整的 HTML 结构（`<head>` 桥接脚本 + `<body><div id="app">` + 内联 JS/CSS + Tailwind）
+    2. **读取构建产物**：读取 `dist/<模块>/index.html` 的完整内容
+    3. **创建包装脚本**：在 `scripts/` 目录创建 `.json` 元数据和 `-content.js` 包装脚本
+
+    `-content.js` 包装脚本模板：
+    ```javascript
+    const PANEL_HTML = `<此处粘贴 dist/<模块>/index.html 的完整内容>`;
+
+    function openPanel() {
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;height:70vh;border:none;background:#1a1a1e;border-radius:8px;';
+      iframe.srcdoc = PANEL_HTML;
+      SillyTavern.callGenericPopup(iframe, SillyTavern.POPUP_TYPE.TEXT, '', {
+        wide: true,
+        allowVerticalScrolling: true,
+        okButton: '关闭',
+      });
+    }
+    ```
+
+    `.json` 元数据中配置按钮触发 `openPanel()`：
+    ```json
+    {
+      "type": "script",
+      "enabled": true,
+      "name": "面板名称",
+      "id": "<生成唯一UUID>",
+      "info": "",
+      "button": {
+        "enabled": true,
+        "buttons": [{ "name": "面板按钮文字", "visible": true }]
+      },
+      "data": {}
+    }
+    ```
+
+    > **⚠️ 常见错误**: 不要跳过 webpack 构建步骤直接手写 HTML。构建产物包含 `IframeBridgePlugin` 注入的全局变量桥接脚本（`Vue`、`VueRouter`、`z`、`$` 等从父窗口复制到 iframe）、内联的 Tailwind CSS、以及 `</script>` 转义处理。手动拼接的 HTML 会缺少这些关键部分，导致面板无法运行。
+
+    **流式楼层 / 纯脚本** → 添加酒馆助手脚本到角色卡：
     - 在工作区 `scripts/` 目录添加脚本（extract-card 已自动提取酒馆助手脚本到此目录）
     - 每个脚本有一个 `.json`（元数据）和 `-content.js`（脚本内容）
-    - 修改 `-content.js` 中的内容为 `import '<编译后的 JS 文件 URL>'`
-    - 如果上传到 GitHub/CDN → 使用 jsDelivr URL
-    - 也可以直接将编译后的 JS 代码粘贴到 `-content.js` 中
+    - 将编译后的 JS 代码（`dist/<模块>/index.js`）直接粘贴到 `-content.js` 中
+    - 或用 import 引用远程 URL：`import 'https://testingcf.jsdelivr.net/gh/用户名/仓库/dist/模块名/index.js'`
 
 19. **写回**: 运行 `st-card-tools apply-card <name>` 将修改写回角色卡。
 
