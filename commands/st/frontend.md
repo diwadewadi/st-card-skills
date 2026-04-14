@@ -179,6 +179,29 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
 - 页面整体应适配容器宽度，**不产生横向滚动条**
 - 如果样式更适合卡片形状，则不要有背景颜色（除非用户明确要求）
 
+### iframe 全局变量桥接（自动）
+
+HTML 模式构建时，`IframeBridgePlugin` 会自动在 `<head>` 中注入桥接脚本，将以下父窗口全局变量复制到 iframe：
+
+- **ST 外部库**: `$`、`_`、`showdown`、`toastr`、`Vue`、`VueRouter`、`YAML`、`z`
+- **运行时 API**: `errorCatched`、`getVariables`、`updateVariablesWith`
+
+如果卡片代码在 iframe 中使用了其他 SillyTavern 运行时 API（如 `eventOn`、`getChatMessages`），需要在 `index.html` 的 `<head>` 中手动添加：
+
+```html
+<head>
+  <script>['eventOn','getChatMessages'].forEach(g=>{if(g in parent)window[g]=parent[g]})</script>
+</head>
+```
+
+完整可桥接 API 列表参考 `devkit/types/function/index.d.ts` 中的 `Window.TavernHelper` 接口。
+
+### `</script>` 和 `</style>` 转义（自动）
+
+HTML 模式构建产物会被嵌入到角色卡 content 的模板字符串或 srcdoc 属性中。如果 HTML 中包含未转义的 `</script>` 或 `</style>`，会导致外层标签被提前关闭。
+
+`IframeBridgePlugin` 在构建的最后阶段自动将所有 `</script>` 转义为 `<\/script>`、`</style>` 转义为 `<\/style>`，无需手动处理。
+
 ### 图标
 
 可以任意使用 **FontAwesome 免费图标**，无需额外导入。
