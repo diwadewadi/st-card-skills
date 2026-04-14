@@ -375,14 +375,14 @@ function buildConfig(entry: EntryInfo, tsconfigPath: string): (env: any, argv: a
           isProd
             ? new TerserPlugin({
                 terserOptions: {
-                  format: { quote_style: 1 },
+                  format: { quote_style: 1, ascii_only: true },
                   mangle: { reserved: ['_', 'toastr', 'YAML', '$', 'z'] },
                 },
               })
             : new TerserPlugin({
                 extractComments: false,
                 terserOptions: {
-                  format: { beautify: true, indent_level: 2 },
+                  format: { beautify: true, indent_level: 2, ascii_only: true },
                   compress: false,
                   mangle: false,
                 },
