@@ -23,6 +23,7 @@ import {
   extractWorldToWorkspace,
   applyWorldFromWorkspace,
 } from "./world-parser.js";
+import { verifyLive } from "./verify-live.js";
 
 // ---- Arg parsing ----
 
@@ -40,6 +41,7 @@ const CONFIG_FILE = ".st-card-tools.json";
 
 interface Config {
   "st-root"?: string;
+  "st-url"?: string;
   workspace?: string;
 }
 
@@ -67,9 +69,10 @@ function saveConfig(config: Config): string {
 
 const config = loadConfig();
 const stRoot = getFlag("st-root") || process.env.ST_ROOT || config["st-root"] || "";
+const stUrl = getFlag("st-url") || process.env.ST_URL || config["st-url"] || "http://127.0.0.1:8000/";
 let cardsDir = getFlag("cards") || process.env.ST_CARDS_DIR || "";
 let worldsDir = getFlag("worlds") || process.env.ST_WORLDS_DIR || "";
-let workspaceDir = getFlag("workspace") || config.workspace || path.join(process.cwd(), "workspace");
+let workspaceDir = path.resolve(getFlag("workspace") || config.workspace || path.join(process.cwd(), "workspace"));
 
 if (stRoot && !cardsDir) {
   cardsDir = path.join(stRoot, "data", "default-user", "characters");
@@ -106,7 +109,19 @@ function resolveWorldPath(nameOrPath: string): string {
 
 // ---- Filter out flags from positional args ----
 const positional: string[] = [];
-const flagNames = new Set(["st-root", "cards", "worlds", "workspace", "dir", "output"]);
+const flagNames = new Set([
+  "st-root",
+  "st-url",
+  "cards",
+  "worlds",
+  "workspace",
+  "dir",
+  "output",
+  "module",
+  "browser",
+  "user-data-dir",
+  "timeout",
+]);
 for (let i = 0; i < argv.length; i++) {
   if (argv[i].startsWith("--")) {
     const name = argv[i].slice(2);
@@ -129,7 +144,7 @@ function printHelp() {
 Usage: st-card-tools <command> [args] [options]
 
 Commands:
-  init-config                     Save st-root and workspace to ~/.st-card-tools.json
+  init-config                     Save st-root, st-url, and workspace to ~/.st-card-tools.json
   init                            Initialize workspace directory
   list-cards                      List character card PNG files
   read-card <name>                Read full card JSON from PNG
@@ -137,6 +152,7 @@ Commands:
   write-card-field <name> <field> <value>  Modify a field
   extract-card <name>             Extract card to workspace
   apply-card <name>               Apply workspace card back to PNG
+  verify-live <name>              Open real SillyTavern in a browser and stream console logs
   list-worlds                     List world book JSON files
   read-world <name>               Read world book entry summaries
   read-world-entry <name> <id>    Read full entry content
@@ -145,141 +161,174 @@ Commands:
 
 Options:
   --st-root <path>    SillyTavern root directory (or ST_ROOT env)
+  --st-url <url>      SillyTavern browser URL (or ST_URL env; default: http://127.0.0.1:8000/)
   --cards <path>      Override characters directory
   --worlds <path>     Override worlds directory
   --workspace <path>  Workspace directory (default: cwd/workspace)
   --dir <path>        Override directory for list commands
   --output <path>     Override output path for apply commands
+  --module <name>     Module label used by verify-live instructions/logs
+  --browser <name>    Browser channel for verify-live (default: msedge)
+  --user-data-dir <path>  Persistent browser profile for verify-live
+  --timeout <ms>      Navigation timeout for verify-live (default: 15000)
   --help              Show this help`);
 }
 
-try {
-  switch (command) {
-    case undefined:
-    case "--help":
-    case "help": {
-      printHelp();
-      break;
-    }
-
-    case "init-config": {
-      const newConfig: Config = { ...config };
-      if (stRoot) newConfig["st-root"] = stRoot;
-      if (getFlag("workspace")) newConfig.workspace = getFlag("workspace")!;
-      const saved = saveConfig(newConfig);
-      console.log(`Config saved to ${saved}`);
-      console.log(JSON.stringify(newConfig, null, 2));
-      break;
-    }
-
-    case "init": {
-      workspaceDir = path.resolve(getFlag("workspace") || workspaceDir);
-      fs.mkdirSync(workspaceDir, { recursive: true });
-      console.log(`Workspace initialized at: ${workspaceDir}`);
-      break;
-    }
-
-    case "list-cards": {
-      const dir = getFlag("dir") || cardsDir;
-      if (!dir) { console.error("Error: No cards directory. Use --st-root or --dir."); process.exit(1); }
-      console.log(JSON.stringify(listCards(dir), null, 2));
-      break;
-    }
-
-    case "read-card": {
-      if (!args[0]) { console.error("Usage: st-card-tools read-card <name>"); process.exit(1); }
-      const card = readCardFromPng(resolveCardPath(args[0]));
-      console.log(JSON.stringify(card, null, 2));
-      break;
-    }
-
-    case "read-card-field": {
-      if (!args[0] || !args[1]) { console.error("Usage: st-card-tools read-card-field <name> <field>"); process.exit(1); }
-      const card = readCardFromPng(resolveCardPath(args[0]));
-      const value = getCardField(card, args[1]);
-      if (value === undefined) { console.error(`Error: Field "${args[1]}" not found`); process.exit(1); }
-      console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2));
-      break;
-    }
-
-    case "write-card-field": {
-      if (!args[0] || !args[1] || args[2] === undefined) {
-        console.error("Usage: st-card-tools write-card-field <name> <field> <value>"); process.exit(1);
+async function main() {
+  try {
+    switch (command) {
+      case undefined:
+      case "--help":
+      case "help": {
+        printHelp();
+        break;
       }
-      const cardPath = resolveCardPath(args[0]);
-      const card = readCardFromPng(cardPath);
-      let value: unknown = args[2];
-      try { value = JSON.parse(args[2]); } catch { /* keep as string */ }
-      setCardField(card, args[1], value);
-      writeCardToPng(cardPath, card);
-      console.log(`Field "${args[1]}" updated in ${cardPath}`);
-      break;
-    }
 
-    case "extract-card": {
-      if (!args[0]) { console.error("Usage: st-card-tools extract-card <name>"); process.exit(1); }
-      const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir, worldsDir || undefined);
-      const parts = [`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`];
-      if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
-      if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
-      if (result.scriptFiles.length > 0) parts.push(`  scripts: ${result.scriptFiles.join(", ")}`);
-      if (result.worldDir) parts.push(`  world: ${result.worldDir}`);
-      console.log(parts.join("\n"));
-      break;
-    }
+      case "init-config": {
+        const newConfig: Config = { ...config };
+        if (stRoot) newConfig["st-root"] = stRoot;
+        if (getFlag("st-url")) newConfig["st-url"] = getFlag("st-url")!;
+        if (getFlag("workspace")) newConfig.workspace = getFlag("workspace")!;
+        const saved = saveConfig(newConfig);
+        console.log(`Config saved to ${saved}`);
+        console.log(JSON.stringify(newConfig, null, 2));
+        break;
+      }
 
-    case "apply-card": {
-      if (!args[0]) { console.error("Usage: st-card-tools apply-card <name>"); process.exit(1); }
-      const cardDir = path.join(workspaceDir, "cards", args[0]);
-      const target = applyCardFromWorkspace(cardDir, getFlag("output"));
-      console.log(`Card applied to ${target}`);
-      break;
-    }
+      case "init": {
+        workspaceDir = path.resolve(getFlag("workspace") || workspaceDir);
+        fs.mkdirSync(workspaceDir, { recursive: true });
+        console.log(`Workspace initialized at: ${workspaceDir}`);
+        break;
+      }
 
-    case "list-worlds": {
-      const dir = getFlag("dir") || worldsDir;
-      if (!dir) { console.error("Error: No worlds directory. Use --st-root or --dir."); process.exit(1); }
-      console.log(JSON.stringify(listWorlds(dir), null, 2));
-      break;
-    }
+      case "list-cards": {
+        const dir = getFlag("dir") || cardsDir;
+        if (!dir) { console.error("Error: No cards directory. Use --st-root or --dir."); process.exit(1); }
+        console.log(JSON.stringify(listCards(dir), null, 2));
+        break;
+      }
 
-    case "read-world": {
-      if (!args[0]) { console.error("Usage: st-card-tools read-world <name>"); process.exit(1); }
-      const world = readWorld(resolveWorldPath(args[0]));
-      console.log(JSON.stringify(getWorldEntrySummaries(world), null, 2));
-      break;
-    }
+      case "read-card": {
+        if (!args[0]) { console.error("Usage: st-card-tools read-card <name>"); process.exit(1); }
+        const card = readCardFromPng(resolveCardPath(args[0]));
+        console.log(JSON.stringify(card, null, 2));
+        break;
+      }
 
-    case "read-world-entry": {
-      if (!args[0] || !args[1]) { console.error("Usage: st-card-tools read-world-entry <name> <id>"); process.exit(1); }
-      const world = readWorld(resolveWorldPath(args[0]));
-      const entry = getWorldEntry(world, args[1]);
-      if (!entry) { console.error(`Error: Entry "${args[1]}" not found`); process.exit(1); }
-      console.log(JSON.stringify(entry, null, 2));
-      break;
-    }
+      case "read-card-field": {
+        if (!args[0] || !args[1]) { console.error("Usage: st-card-tools read-card-field <name> <field>"); process.exit(1); }
+        const card = readCardFromPng(resolveCardPath(args[0]));
+        const value = getCardField(card, args[1]);
+        if (value === undefined) { console.error(`Error: Field "${args[1]}" not found`); process.exit(1); }
+        console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2));
+        break;
+      }
 
-    case "extract-world": {
-      if (!args[0]) { console.error("Usage: st-card-tools extract-world <name>"); process.exit(1); }
-      const result = extractWorldToWorkspace(resolveWorldPath(args[0]), workspaceDir);
-      console.log(`World extracted:\n  Directory: ${result.outDir}\n  Files: _meta.json, ${result.entryFiles.join(", ")}`);
-      break;
-    }
+      case "write-card-field": {
+        if (!args[0] || !args[1] || args[2] === undefined) {
+          console.error("Usage: st-card-tools write-card-field <name> <field> <value>"); process.exit(1);
+        }
+        const cardPath = resolveCardPath(args[0]);
+        const card = readCardFromPng(cardPath);
+        let value: unknown = args[2];
+        try { value = JSON.parse(args[2]); } catch { /* keep as string */ }
+        setCardField(card, args[1], value);
+        writeCardToPng(cardPath, card);
+        console.log(`Field "${args[1]}" updated in ${cardPath}`);
+        break;
+      }
 
-    case "apply-world": {
-      if (!args[0]) { console.error("Usage: st-card-tools apply-world <name>"); process.exit(1); }
-      const worldDir = path.join(workspaceDir, "worlds", args[0]);
-      const target = applyWorldFromWorkspace(worldDir, getFlag("output"));
-      console.log(`World applied to ${target}`);
-      break;
-    }
+      case "extract-card": {
+        if (!args[0]) { console.error("Usage: st-card-tools extract-card <name>"); process.exit(1); }
+        const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir, worldsDir || undefined);
+        const parts = [`Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`];
+        if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
+        if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
+        if (result.scriptFiles.length > 0) parts.push(`  scripts: ${result.scriptFiles.join(", ")}`);
+        if (result.worldDir) parts.push(`  world: ${result.worldDir}`);
+        console.log(parts.join("\n"));
+        break;
+      }
 
-    default: {
-      console.error(`Unknown command: ${command}\nRun 'st-card-tools --help' for usage.`);
-      process.exit(1);
+      case "apply-card": {
+        if (!args[0]) { console.error("Usage: st-card-tools apply-card <name>"); process.exit(1); }
+        const cardDir = path.join(workspaceDir, "cards", args[0]);
+        const target = applyCardFromWorkspace(cardDir, getFlag("output"));
+        console.log(`Card applied to ${target}`);
+        break;
+      }
+
+      case "verify-live": {
+        if (!args[0]) {
+          console.error("Usage: st-card-tools verify-live <name> [--module <name>] [--st-url <url>]");
+          process.exit(1);
+        }
+
+        const cardDir = path.join(workspaceDir, "cards", args[0]);
+        const userDataDir = path.resolve(
+          getFlag("user-data-dir") || path.join(workspaceDir, ".st-card-tools", "verify-live-profile"),
+        );
+
+        await verifyLive({
+          cardName: args[0],
+          moduleName: getFlag("module"),
+          stUrl,
+          browserChannel: getFlag("browser") || process.env.ST_BROWSER || "msedge",
+          userDataDir,
+          timeoutMs: Number(getFlag("timeout") || 15000),
+          logDir: path.join(cardDir, "logs", "verify-live"),
+        });
+        break;
+      }
+
+      case "list-worlds": {
+        const dir = getFlag("dir") || worldsDir;
+        if (!dir) { console.error("Error: No worlds directory. Use --st-root or --dir."); process.exit(1); }
+        console.log(JSON.stringify(listWorlds(dir), null, 2));
+        break;
+      }
+
+      case "read-world": {
+        if (!args[0]) { console.error("Usage: st-card-tools read-world <name>"); process.exit(1); }
+        const world = readWorld(resolveWorldPath(args[0]));
+        console.log(JSON.stringify(getWorldEntrySummaries(world), null, 2));
+        break;
+      }
+
+      case "read-world-entry": {
+        if (!args[0] || !args[1]) { console.error("Usage: st-card-tools read-world-entry <name> <id>"); process.exit(1); }
+        const world = readWorld(resolveWorldPath(args[0]));
+        const entry = getWorldEntry(world, args[1]);
+        if (!entry) { console.error(`Error: Entry "${args[1]}" not found`); process.exit(1); }
+        console.log(JSON.stringify(entry, null, 2));
+        break;
+      }
+
+      case "extract-world": {
+        if (!args[0]) { console.error("Usage: st-card-tools extract-world <name>"); process.exit(1); }
+        const result = extractWorldToWorkspace(resolveWorldPath(args[0]), workspaceDir);
+        console.log(`World extracted:\n  Directory: ${result.outDir}\n  Files: _meta.json, ${result.entryFiles.join(", ")}`);
+        break;
+      }
+
+      case "apply-world": {
+        if (!args[0]) { console.error("Usage: st-card-tools apply-world <name>"); process.exit(1); }
+        const worldDir = path.join(workspaceDir, "worlds", args[0]);
+        const target = applyWorldFromWorkspace(worldDir, getFlag("output"));
+        console.log(`World applied to ${target}`);
+        break;
+      }
+
+      default: {
+        console.error(`Unknown command: ${command}\nRun 'st-card-tools --help' for usage.`);
+        process.exit(1);
+      }
     }
+  } catch (e: unknown) {
+    console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+    process.exit(1);
   }
-} catch (e: unknown) {
-  console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
-  process.exit(1);
 }
+
+await main();

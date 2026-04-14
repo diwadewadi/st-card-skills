@@ -292,4 +292,25 @@ import './index.scss';
     - [ ] 移动端适配
     - [ ] 事件监听器在页面卸载时正确清理
 
+## Phase 6B: Live SillyTavern Debugging
+
+23. **Preferred test loop for real frontend validation**:
+    - Run `pnpm dev` in the devkit directory so frontend code rebuilds automatically.
+    - After each successful rebuild, run `st-card-tools apply-card <name>` to write the updated assets back into the real character card.
+    - Run `st-card-tools verify-live <name> --module <module-name>` to launch a real browser against your running SillyTavern and stream browser `console`, `pageerror`, and failed request logs back into the terminal.
+    - In the opened SillyTavern window, switch to the target card and trigger the relevant UI (`panel`, `streaming`, or `statusbar`).
+    - Use the streamed logs and the saved log file under `workspace/cards/<cardname>/logs/verify-live/` to diagnose and fix real integration issues.
+
+24. **Logging requirement for live debugging**:
+    - Use `console.info` on key lifecycle nodes such as mount, store hydration, event registration, and teardown.
+    - Prefer a stable prefix such as `[STF][statusbar]`, `[STF][panel]`, or `[STF][streaming]` so live logs stay easy to filter.
+    - Use `console.warn` / `console.error` for recoverable failures, and make the message include the failing state or payload shape whenever possible.
+
+25. **Live verification checklist**:
+    - [ ] The real SillyTavern page renders the module correctly after `apply-card`
+    - [ ] Browser console has no unexpected errors during load, refresh, and teardown
+    - [ ] Variable binding works with real card data (especially MVU updates if used)
+    - [ ] Event listeners are cleaned up correctly when the page or iframe reloads
+    - [ ] Mobile layout still works inside the actual SillyTavern container
+
 </process>

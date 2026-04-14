@@ -37,11 +37,14 @@ st-card-tools list-cards          # List character cards
 st-card-tools read-card <name>    # Read card JSON
 st-card-tools extract-card <name> # Extract card + greetings + regex scripts + world book to workspace
 st-card-tools apply-card <name>   # Apply workspace back to PNG + world book
+st-card-tools verify-live <name>  # Open real SillyTavern and stream browser console logs
 st-card-tools list-worlds         # List world books
 st-card-tools read-world <name>   # Read world book entries
 st-card-tools extract-world <name> # Extract world to workspace (entry .json + -content.txt)
 st-card-tools apply-world <name>  # Apply workspace back to JSON
 ```
+
+`verify-live` is intended for frontend debugging. It launches a real browser against your running SillyTavern instance, then mirrors browser `console`, page errors, and failed requests back into the terminal and a workspace log file.
 
 ## Skills Installer (st-card-skills)
 
