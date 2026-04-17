@@ -73,22 +73,6 @@ interface TextChunkData {
   text: string;
 }
 
-interface CardWorkspaceManifest {
-  schema: "st-card-tools/card-workspace-manifest@1";
-  generatedAt: string;
-  cardName: string;
-  sourcePng: string;
-  files: {
-    cardJson: string;
-    avatar: string;
-    greetings: string[];
-    regex: Array<{ metaFile: string; replaceFile: string }>;
-    scripts: Array<{ metaFile: string; contentFile: string }>;
-    worldDir?: string;
-    worldManifest?: string;
-  };
-  applyCommand: string;
-}
 
 export interface CharacterCardV2 {
   spec: string;
@@ -248,7 +232,6 @@ export function extractCardToWorkspace(
   regexFiles: string[];
   scriptFiles: string[];
   worldDir?: string;
-  manifestPath: string;
 } {
   const card = readCardFromPng(pngPath) as CharacterCardV2 & { world?: string; [k: string]: unknown };
   const cardName = card.data.name || path.basename(pngPath, ".png");
@@ -386,7 +369,6 @@ export function extractCardToWorkspace(
 
   // --- Extract linked world book ---
   let worldOutDir: string | undefined;
-  let worldManifestPath: string | undefined;
   const worldName: string | undefined =
     (card.data?.extensions?.world as string) || (card.world as string) || undefined;
   if (worldName && worldsDir) {
@@ -394,37 +376,19 @@ export function extractCardToWorkspace(
     if (fs.existsSync(worldPath)) {
       const result = extractWorldToWorkspace(worldPath, outDir, "world");
       worldOutDir = result.outDir;
-      worldManifestPath = result.manifestPath;
     }
   }
 
-  const regexPairs = regexFiles.map((metaFile) => ({
-    metaFile,
-    replaceFile: metaFile.replace(/\.json$/, "-replace.txt"),
-  }));
-  const scriptPairs = scriptFiles.map((metaFile) => ({
-    metaFile,
-    contentFile: metaFile.replace(/\.json$/, "-content.js"),
-  }));
+  // Remove stale _manifest.json from previous versions
+  const oldManifest = path.join(outDir, "_manifest.json");
+  if (fs.existsSync(oldManifest)) fs.unlinkSync(oldManifest);
 
-  const manifest: CardWorkspaceManifest = {
-    schema: "st-card-tools/card-workspace-manifest@1",
-    generatedAt,
-    cardName,
-    sourcePng: pngPath,
-    files: {
-      cardJson: path.basename(cardJsonPath),
-      avatar: path.basename(avatarPath),
-      greetings: greetingFiles,
-      regex: regexPairs,
-      scripts: scriptPairs,
-      worldDir: worldOutDir ? toWorkspaceRelativePath(outDir, worldOutDir) : undefined,
-      worldManifest: worldManifestPath ? toWorkspaceRelativePath(outDir, worldManifestPath) : undefined,
-    },
-    applyCommand: `st-card-tools apply-card "${sanitized}"`,
-  };
-  const manifestPath = path.join(outDir, "_manifest.json");
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  // Generate _index.md (always overwritten) and _memory.md (created only if missing)
+  generateCardIndex(outDir);
+  const memoryPath = path.join(outDir, "_memory.md");
+  if (!fs.existsSync(memoryPath)) {
+    fs.writeFileSync(memoryPath, MEMORY_TEMPLATE, "utf8");
+  }
 
   return {
     outDir,
@@ -434,7 +398,6 @@ export function extractCardToWorkspace(
     regexFiles,
     scriptFiles,
     worldDir: worldOutDir,
-    manifestPath,
   };
 }
 
@@ -541,6 +504,9 @@ export function applyCardFromWorkspace(
   // Write card data into avatar.png (which has the image data)
   writeCardToPng(avatarPath, card as CharacterCardV2, target);
 
+  // Refresh _index.md after apply (workspace may have new entries)
+  generateCardIndex(cardDir);
+
   return target;
 }
 
@@ -552,6 +518,125 @@ function sanitizeFilename(name: string): string {
     .slice(0, 80);
 }
 
-function toWorkspaceRelativePath(baseDir: string, targetPath: string): string {
-  return path.relative(baseDir, targetPath).split(path.sep).join("/");
+const MEMORY_TEMPLATE = `# Card Memory
+
+AI 工作笔记 — 记录对这张卡的理解和修改历史。extract-card 不会覆盖此文件。
+
+## Notes
+
+`;
+
+function truncate(text: string | undefined, max: number): string {
+  if (!text) return "(空)";
+  const oneLine = text.replace(/\n/g, " ");
+  if (oneLine.length <= max) return oneLine;
+  return oneLine.slice(0, max) + "...";
+}
+
+/**
+ * Generate _index.md — a structured summary of the card workspace for AI context.
+ * Called after both extract and apply so it always reflects current state.
+ */
+function generateCardIndex(cardDir: string): void {
+  const cardJsonPath = path.join(cardDir, "card.json");
+  if (!fs.existsSync(cardJsonPath)) return;
+
+  const raw = JSON.parse(fs.readFileSync(cardJsonPath, "utf8"));
+  const data = raw.data ?? {};
+  const cardName = data.name || path.basename(cardDir);
+  const source = raw._source || "(unknown)";
+
+  const lines: string[] = [];
+  lines.push(`# ${cardName}`);
+  lines.push("");
+  lines.push(`> 来源: ${source} | 更新时间: ${new Date().toISOString()}`);
+
+  // --- Card fields summary ---
+  lines.push("");
+  lines.push("## 角色设定");
+  const fields = ["description", "personality", "scenario", "system_prompt", "post_history_instructions", "mes_example"];
+  for (const f of fields) {
+    const val = data[f] as string | undefined;
+    const len = val?.length ?? 0;
+    if (len > 0) {
+      lines.push(`- ${f}: ${truncate(val, 100)} [共${len}字符]`);
+    }
+  }
+
+  // --- Greetings ---
+  const greetingsDir = path.join(cardDir, "greetings");
+  if (fs.existsSync(greetingsDir)) {
+    const files = fs.readdirSync(greetingsDir).filter(f => f.endsWith(".txt")).sort();
+    lines.push("");
+    lines.push(`## 开场白 (${files.length}个)`);
+    if (files.length > 0) {
+      lines.push("| 文件 | 字符数 |");
+      lines.push("|------|--------|");
+      for (const f of files) {
+        const len = fs.readFileSync(path.join(greetingsDir, f), "utf8").length;
+        lines.push(`| ${f} | ${len} |`);
+      }
+    }
+  }
+
+  // --- Regex scripts ---
+  const regexDir = path.join(cardDir, "regex");
+  if (fs.existsSync(regexDir)) {
+    const jsonFiles = fs.readdirSync(regexDir).filter(f => f.endsWith(".json")).sort();
+    lines.push("");
+    lines.push(`## 正则脚本 (${jsonFiles.length}个)`);
+    if (jsonFiles.length > 0) {
+      lines.push("| 文件 | 名称 | 启用 |");
+      lines.push("|------|------|------|");
+      for (const f of jsonFiles) {
+        const meta = JSON.parse(fs.readFileSync(path.join(regexDir, f), "utf8"));
+        const name = meta.scriptName ?? f;
+        const enabled = meta.disabled === true ? "✗" : "✓";
+        lines.push(`| ${f} | ${name} | ${enabled} |`);
+      }
+    }
+  }
+
+  // --- TavernHelper scripts ---
+  const scriptsDir = path.join(cardDir, "scripts");
+  if (fs.existsSync(scriptsDir)) {
+    const jsonFiles = fs.readdirSync(scriptsDir).filter(f => f.endsWith(".json")).sort();
+    lines.push("");
+    lines.push(`## 酒馆助手脚本 (${jsonFiles.length}个)`);
+    if (jsonFiles.length > 0) {
+      lines.push("| 文件 | 名称 | 启用 |");
+      lines.push("|------|------|------|");
+      for (const f of jsonFiles) {
+        const meta = JSON.parse(fs.readFileSync(path.join(scriptsDir, f), "utf8"));
+        const name = meta.name ?? f;
+        const enabled = meta.enabled === false ? "✗" : "✓";
+        lines.push(`| ${f} | ${name} | ${enabled} |`);
+      }
+    }
+  }
+
+  // --- World book entries ---
+  const worldDir = path.join(cardDir, "world");
+  if (fs.existsSync(worldDir)) {
+    const jsonFiles = fs.readdirSync(worldDir).filter(f => f.endsWith(".json") && !f.startsWith("_")).sort();
+    lines.push("");
+    lines.push(`## 世界书条目 (${jsonFiles.length}个)`);
+    if (jsonFiles.length > 0) {
+      lines.push("| 文件 | 名称 | 字符数 | 常驻 | 启用 |");
+      lines.push("|------|------|--------|------|------|");
+      for (const f of jsonFiles) {
+        const meta = JSON.parse(fs.readFileSync(path.join(worldDir, f), "utf8"));
+        const name = meta.comment ?? f;
+        const contentFile = f.replace(/\.json$/, "-content.txt");
+        const contentPath = path.join(worldDir, contentFile);
+        const len = fs.existsSync(contentPath) ? fs.readFileSync(contentPath, "utf8").length : 0;
+        const constant = meta.constant ? "✓" : "✗";
+        const enabled = meta.disable ? "✗" : "✓";
+        lines.push(`| ${f} | ${name} | ${len} | ${constant} | ${enabled} |`);
+      }
+    }
+  }
+
+  lines.push("");
+  fs.writeFileSync(path.join(cardDir, "_index.md"), lines.join("\n"), "utf8");
 }

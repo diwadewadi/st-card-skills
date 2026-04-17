@@ -59,25 +59,6 @@ interface WorldWorkspaceMeta {
   _world: Record<string, unknown>;
 }
 
-interface WorldWorkspaceManifestEntry {
-  id: string;
-  seq: string;
-  comment: string;
-  metaFile: string;
-  contentFile: string;
-}
-
-interface WorldWorkspaceManifest {
-  schema: "st-card-tools/world-workspace-manifest@1";
-  generatedAt: string;
-  worldName: string;
-  source: string;
-  files: {
-    meta: string;
-    entries: WorldWorkspaceManifestEntry[];
-  };
-  applyCommand: string;
-}
 
 /**
  * List world book JSON files in a directory.
@@ -282,7 +263,7 @@ export function extractWorldToWorkspace(
   worldPath: string,
   workspaceDir: string,
   subDir?: string
-): { outDir: string; entryFiles: string[]; manifestPath: string } {
+): { outDir: string; entryFiles: string[] } {
   const world = readWorld(worldPath);
   const bookName = path.basename(worldPath, ".json");
   const sanitized = sanitizeFilename(bookName);
@@ -310,7 +291,6 @@ export function extractWorldToWorkspace(
 
   // Write each entry as a separate file
   const entryFiles: string[] = [];
-  const manifestEntries: WorldWorkspaceManifestEntry[] = [];
   const sortedIds = Object.keys(entries).sort(
     (a, b) => Number(a) - Number(b)
   );
@@ -338,30 +318,13 @@ export function extractWorldToWorkspace(
       "utf8"
     );
     entryFiles.push(`${baseName}.json`);
-    manifestEntries.push({
-      id,
-      seq,
-      comment: entry.comment,
-      metaFile: `${baseName}.json`,
-      contentFile: `${baseName}-content.txt`,
-    });
   }
 
-  const manifest: WorldWorkspaceManifest = {
-    schema: "st-card-tools/world-workspace-manifest@1",
-    generatedAt,
-    worldName: bookName,
-    source: worldPath,
-    files: {
-      meta: "_meta.json",
-      entries: manifestEntries,
-    },
-    applyCommand: `st-card-tools apply-world "${sanitized}"`,
-  };
-  const manifestPath = path.join(outDir, "_manifest.json");
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  // Remove stale _manifest.json from previous versions
+  const oldManifest = path.join(outDir, "_manifest.json");
+  if (fs.existsSync(oldManifest)) fs.unlinkSync(oldManifest);
 
-  return { outDir, entryFiles, manifestPath };
+  return { outDir, entryFiles };
 }
 
 /**
@@ -388,7 +351,7 @@ export function applyWorldFromWorkspace(
   // Read all entry files (sorted by filename)
   const files = fs
     .readdirSync(worldDir)
-    .filter((f) => f.endsWith(".json") && f !== "_meta.json")
+    .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
     .sort();
 
   const entries: Record<string, WorldEntry> = {};

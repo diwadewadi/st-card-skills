@@ -458,7 +458,7 @@ async function main() {
         if (!args[0]) { console.error("Usage: st-card-tools extract-card <name>"); process.exit(1); }
         const result = extractCardToWorkspace(resolveCardPath(args[0]), workspaceDir, worldsDir || undefined);
         const parts = [
-          `Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}\n  manifest: ${result.manifestPath}`,
+          `Card extracted:\n  card.json: ${result.cardJsonPath}\n  avatar: ${result.avatarPath}`,
         ];
         if (result.greetingFiles.length > 0) parts.push(`  greetings: ${result.greetingFiles.join(", ")}`);
         if (result.regexFiles.length > 0) parts.push(`  regex: ${result.regexFiles.join(", ")}`);
@@ -525,7 +525,7 @@ async function main() {
       case "extract-world": {
         if (!args[0]) { console.error("Usage: st-card-tools extract-world <name>"); process.exit(1); }
         const result = extractWorldToWorkspace(resolveWorldPath(args[0]), workspaceDir);
-        const fileList = ["_meta.json", "_manifest.json", ...result.entryFiles].join(", ");
+        const fileList = ["_meta.json", ...result.entryFiles].join(", ");
         console.log(
           `World extracted:\n  Directory: ${result.outDir}\n  Files: ${fileList}`,
         );

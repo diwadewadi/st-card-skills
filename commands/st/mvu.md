@@ -25,7 +25,11 @@ description: Add or modify MVU variable system and frontend for a character card
 
 3. **提取角色卡**: 运行 `st-card-tools extract-card <name>` 将角色卡提取到工作区。
 
-4. **全面阅读角色卡内容**: 读取工作区中的所有文件来理解角色卡设定：
+4. **阅读角色卡上下文**: 先读取工作区中的 `_memory.md` 和 `_index.md`：
+   - `_index.md` — 自动生成的结构索引，包含字段摘要、文件清单、字符数统计
+   - `_memory.md` — AI 工作笔记，记录之前对这张卡的理解和修改历史
+   
+   如果 `_memory.md` 中已有足够的上下文理解（如变量结构、设计意图等），可以跳过读取完整文件，直接进入下一步。否则，全面阅读角色卡内容：
    - `card.json` — 角色卡元数据、描述、系统提示词（注意：extract 后 scripts 已分离到 scripts/ 目录，card.json 中不再包含 tavern_helper.scripts）
    - `greetings/*.txt` — 所有开场白
    - `world/*.json` 和 `world/*-content.txt` — 所有世界书条目
@@ -244,7 +248,21 @@ description: Add or modify MVU variable system and frontend for a character card
 
 14. **写回**: 运行 `st-card-tools apply-card <name>` 将所有修改写回 PNG + 世界书。
 
-15. **提示测试**: 告诉用户在 SillyTavern 中重新加载角色卡进行测试，检查：
+15. **更新工作笔记**: 在工作区的 `_memory.md` 的 `## Notes` 区域追加本次工作记录，包括：
+    - 本次做了什么（新增/修改了哪些组件）
+    - 关键设计决策（变量结构设计理由、特殊约束等）
+    - 当前 MVU 系统概况（变量结构摘要、世界书条目列表、正则列表）
+    
+    格式示例：
+    ```
+    ### YYYY-MM-DD 操作记录
+    - 新增 MVU 变量系统：包含 character.mood, character.affection, world.time 等变量
+    - 变量更新规则：好感度每次变化不超过 ±5，心情根据对话内容自动调整
+    - 生成了 6 个正则脚本和 5 个世界书条目
+    - 前端状态栏：tab 式布局，显示角色状态和世界状态
+    ```
+
+16. **提示测试**: 告诉用户在 SillyTavern 中重新加载角色卡进行测试，检查：
     - 变量是否正确初始化（开新聊天）
     - AI 回复末尾是否输出 `<UpdateVariable>` 块
     - 变量更新是否正常解析

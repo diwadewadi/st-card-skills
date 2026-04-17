@@ -85,7 +85,8 @@ Output the following command reference:
 ```
 extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 酒馆助手脚本 + 关联世界书
   workspace/cards/{name}/
-    _manifest.json          工作区清单（给人和 AI 快速理解结构）
+    _index.md               结构索引（extract/apply 自动重建，给 AI 快速了解卡片结构）
+    _memory.md              AI 工作笔记（跨会话保留，extract 不覆盖）
     card.json              角色卡元数据
     avatar.png             头像
     greetings/
@@ -99,7 +100,6 @@ extract-card → 自动提取角色卡 + 开场白 + 正则脚本 + 酒馆助手
       000_xxx-content.js   脚本代码内容
     world/
       _meta.json           世界书来源和顶层元数据
-      _manifest.json       世界书工作区清单
       000_xxx.json         条目元数据
       000_xxx-content.txt  条目内容（纯文本）
 

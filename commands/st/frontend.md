@@ -42,7 +42,11 @@ description: Create complex Vue 3 interactive frontend for a character card (sta
 
 4. **选择目标角色卡**: 运行 `st-card-tools list-cards`，展示列表让用户选择。
 
-5. **提取并分析角色卡**: 运行 `st-card-tools extract-card <name>` 提取角色卡，然后读取工作区中所有文件了解角色卡设定。
+5. **提取并分析角色卡**: 运行 `st-card-tools extract-card <name>` 提取角色卡，然后先读取工作区中的 `_memory.md` 和 `_index.md`：
+   - `_index.md` — 自动生成的结构索引，包含字段摘要、文件清单、字符数统计
+   - `_memory.md` — AI 工作笔记，记录之前对这张卡的理解和修改历史
+   
+   如果 `_memory.md` 中已有足够的上下文理解，可以跳过读取完整文件。否则，读取工作区中所有文件了解角色卡设定。
 
 6. **确定界面类型**: 与用户讨论需要什么样的前端界面：
 
@@ -347,6 +351,12 @@ import './index.scss';
     - 或用 import 引用远程 URL：`import 'https://testingcf.jsdelivr.net/gh/用户名/仓库/dist/模块名/index.js'`
 
 19. **写回**: 运行 `st-card-tools apply-card <name>` 将修改写回角色卡。
+
+20. **更新工作笔记**: 在工作区的 `_memory.md` 的 `## Notes` 区域追加本次工作记录，包括：
+    - 本次创建/修改了什么界面（类型、模块名、功能概述）
+    - 关键技术决策（数据绑定方式、组件结构、样式方案）
+    - 集成方式（正则注入 / 脚本加载 / 流式挂载）
+    - src/ 目录下的模块结构概况
 
 ## Phase 6: 开发调试
 

@@ -40,7 +40,11 @@ description: Create TavernHelper scripts for a character card (events, slash com
 
 5. **选择目标角色卡**: 展示角色卡列表，让用户选择。
 
-6. **提取并分析角色卡**: 运行 `st-card-tools extract-card <name>`，读取所有文件了解角色卡。
+6. **提取并分析角色卡**: 运行 `st-card-tools extract-card <name>`，先读取 `_memory.md` 和 `_index.md`：
+   - `_index.md` — 自动生成的结构索引，包含字段摘要、文件清单、字符数统计
+   - `_memory.md` — AI 工作笔记，记录之前对这张卡的理解和修改历史
+   
+   如果 `_memory.md` 中已有足够的上下文理解，可以跳过读取完整文件。否则，读取所有文件了解角色卡。
 
 7. **确定脚本类型**: 与用户讨论需要什么功能（可多选）：
 
@@ -306,6 +310,11 @@ export const settings = loadSettings();
     将编译后的 JS 上传到 GitHub 等平台，然后在 `-content.js` 中 import URL。
 
 22. **写回**: 运行 `st-card-tools apply-card <name>` 写回角色卡。
+
+23. **更新工作笔记**: 在工作区的 `_memory.md` 的 `## Notes` 区域追加本次工作记录，包括：
+    - 本次创建/修改了什么脚本（名称、功能概述）
+    - 关键技术决策（事件监听策略、数据存储方式、与 MVU 的交互方式）
+    - 脚本的核心逻辑摘要
 
 ## Phase 6: 测试与调试
 
