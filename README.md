@@ -125,7 +125,6 @@ Templates are bundled in `templates/mvu/` (world book metadata, regex configs, b
 
 Features:
 - **Custom hosting** — Works with any image host (GitGud, GitHub, S3, self-hosted, etc.)
-- **SFW + NSFW** — NSFW images render with blur by default, click to reveal
 - **Two modes** — Inline narrative images and structured data images (forum posts, chat messages, etc.)
 
 Templates are bundled in `templates/image/` (world book metadata, regex configs, img rendering HTML).
