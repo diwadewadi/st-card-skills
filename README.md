@@ -119,7 +119,7 @@ Templates are bundled in `templates/mvu/` (world book metadata, regex configs, b
 
 `/st:image` helps you add an image insertion system to any character card. It works by:
 
-1. **World book entries** tell the AI what images are available (directory of SFW/NSFW categories with numbered ranges)
+1. **World book entries** tell the AI what images are available (directory of categories with numbered ranges)
 2. **AI outputs path tags** like `[img_sfw:SFW/人物微笑/3.jpg]` in its responses
 3. **Regex scripts** replace those tags with `<img>` HTML tags, loading images from your hosting URL
 
